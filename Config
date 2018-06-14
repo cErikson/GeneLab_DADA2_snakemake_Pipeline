@@ -1,0 +1,7 @@
+##### Configuration for CutAdapt #####
+# 1. Add primers to /data/metadata/primers/[fwd_primer.txt,rev_primers.txt] 
+
+min_len_dis: 50
+additional: 
+
+samp_fields: [3,4]
