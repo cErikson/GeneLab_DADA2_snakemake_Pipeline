@@ -1,7 +1,65 @@
+#        ++==============================================++
+#        || DADA2 pipeline for marker gene GLDS datasets ||
+#        ||             Paired End Edition               ||
+#        ||             Configuration File               ||
+#        ++==============================================++
+
+###       NOTE: This file must follow YAML specifcations.
+###       Only use spaces, no tabs.(I know, it sucks)
+
+##### Libraries and Programs #####
+# Unix: fastqc, biom
+# Python3: snakemake, cutadapt, multiqc
+# R: tidyverse, dada2, biom, risa
+
+##### Asumptions #####
+# 0. Sequencing files are found under `data/sequencing`
+# 1. Reads are paired end reads
+# 2. Reads have been demuliplexed. Any barcode used for pcr/optical duplicates has been used.
+# 3. Gzipped fastq file follow the `<Accession #>_<resource category>_<Sample Name>_(<Factor Level>_)+.<read>.fastq.gz` format. Where (...)+ indicates one or more factor levels, delimited by under_scores. Read feild is `R1` or `R2`
+# 
+
+##### Instructions #####
+# 0. Run `snakemake setup`
+# 1. Add primers to /data/metadata/primers/[fwd_primer.fastq, rev_primers.fastq]
+# 2. Unzip the isa files into `data/metadata/isa_files`, there should not be any isa files in folders in this directory. 
+# 3. Run `snakemake fastqc` to get a sense of the read quality.
+# 4. Adjust the parameters in this file to meet the needs of the experiment. Please read through each parameter discription. Failure to do so may give you results that look good, but are bad.
+# 5. Run `snakemake all -j <num_cpu_cores>`, and go grab lunch, the pipeline should finish in two hours for a ~20gb dataset on a 8 core machine using default parameters.
+
 ##### Configuration for CutAdapt #####
-# 1. Add primers to /data/metadata/primers/[fwd_primer.txt,rev_primers.txt] 
+min_len_dis: 50 # Default: 0. Discard reads shorter than LENGTH.
+error_rate: 0.1 #  Default: 0.1. Maximum allowed error rate (no. of errors divided by the length of the matching region).
+pair_filter: any # Default: any. Which of the reads in a paired-end read have to match the filtering criterion in order for the pair to be filtered.
+discard_untrimmed: True # Default: True, With EMP primers: likely False. Discards reads in which the primers were not trimmed. If your sequencing primers prime off your insert primers, thus the insert primers are not secquenced, then False. Otherwise True will help clean up messy reads.
+no_indels: True # Default: True. Allow only mismatches in alignments. 
+max_n: 0  # Default: 0. DADA2 can not handle N's. Discard reads with more than COUNT 'N' bases. If COUNT is a number between 0 and 1, it is interpreted as a fraction of the read length
 
-min_len_dis: 50
-additional: 
+##### Configuration for DADA2 #####
+samp_fields: [3,4] # Sample names to be extracted from the fastq filenames and used for sample names in the output table, under_score delimited. e.g. feild1_feild-2_feild-3.0
 
-samp_fields: [3,4]
+## filtering ##
+truncQ: 15 # Default 2. Truncate reads at the first instance of a quality score less than or equal to truncQ.
+maxEE_fwd: 2 #Default 2. (no EE filtering). After truncation, reads with higher than maxEE "expected errors" will be discarded. Expected errors are calculated from the nominal definition of the quality score: EE = sum(10^(-Q/10))
+maxEE_rev: 2 # Default 2. Save as above but for read 2.
+maxLen: 1000 #Default Inf (no maximum). Remove reads with length greater than maxLen. maxLen is enforced before trimming and truncation.
+minLen: 20 #Default 20. Remove reads with length less than minLen. minLen is enforced after trimming and truncation.
+rmphix: TRUE #Default TRUE. If TRUE, discard reads that match against the phiX genome, as determined by isPhiX.
+
+## Core ##
+BAND_SIZE: 16 #Default: 16. 454_Seq: 32. When set, banded Needleman-Wunsch alignments are performed. Banding restricts the net cumulative number of insertion of one sequence relative to the other. If DADA is applied to marker genes with high rates of indels, such as the ITS region in fungi, the BAND_SIZE parameter should be increased. Setting BAND_SIZE to a negative number turns off banding (i.e. full Needleman-Wunsch).
+HOMOPOLYMER_GAP_PENALTY: NULL #Default: NULL, 454_seq: -1. The cost of gaps in homopolymer regions (>=3 repeated bases). Default is NULL, which causes homopolymer gaps to be treated as normal gaps.
+
+## Taxa ##
+# Taxonomic trainning is first done on tax_train, tax_species. Then carried out in order on add_taxa_ds. If duplicate hits are found the sequence in the prior dataset has precedence.
+tax_train: /home/christian/lab/ref_datasets/silva/silva_v132/silva_nr_v132_train_set.fa.gz # The path to the main taxonomic reference fasta file, or an R connection Can be compressed. This reference fasta file should be formatted so that the id lines correspond to the taxonomy (or classification) of the associated sequence, and each taxonomic level is separated by a semicolon. Eg.>Kingom;Phylum;Class;Order;Family;Genus;
+tax_species: /home/christian/lab/ref_datasets/silva/silva_v132/silva_species_assignment_v132.fa.gz
+add_taxa_ds: NULL # Default: NULL. Fasta header format `>Kingom;Phylum;Class;Order;Family;Genus;`
+#   - # File 1
+#   - # File 2
+#   - # File ...
+
+##### DADA2BIOM #####
+isa_dir: data/metadata/isa_files
+isa_samp_file: # The stripped name of the study file. s_SRP098151_2B.txt --> SRP098151_2B
+isa_samp_feild: 'Sample Name' # The label of the the sample name field. Probably `Sample Name`. quote with ``
