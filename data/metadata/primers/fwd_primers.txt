@@ -1,4 +1,0 @@
->Illumina universal 16s 515F (forward primer) PCR primer sequence
-GTGCCAGCMGCCGCGGTAA
->S-D-Arch-0349-a-S-17    ProbeBase:pB-3747
-GYGCASCAGKCGMGAAW

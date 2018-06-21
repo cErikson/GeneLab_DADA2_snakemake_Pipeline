@@ -1,4 +1,0 @@
->806R (reverse primer) PCR primer sequence
-GGACTACHVGGGTWTCTAAT
->S-D-Arch-0349-a-S-17    ProbeBase:pB-3747
-TTACCGCGGCKGCTG
