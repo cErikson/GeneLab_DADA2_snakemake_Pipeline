@@ -7,7 +7,6 @@
 
 library(tidyverse)
 library(dada2)
-library(phyloseq)
 
 # Log errors/ messages to the snakemake log
 log_file=file(snakemake@log[[1]], open='wt')
@@ -17,15 +16,20 @@ sink(log_file)
 setwd(snakemake@params[["wd"]])
 
 # Forward and reverse fastq filenames have format: {ds}_{resource]_{sample}_{factor}_R1-trimmed.fastq
-fnFs <- sort(snakemake@input[["fwd"]])
-fnRs <- sort(snakemake@input[["rev"]])
+fnFs = sort(snakemake@input[["fwd"]])
+fnRs = sort(snakemake@input[["rev"]])
+stopifnot(all(file.exists(fnFs)))
+stopifnot(all(file.exists(fnRs)))
 
 print('File pairs to be processed in DADA2:')
-print(data.frame(fwd_files=fnFs,rev_files=fnRs))
+print(data.frame(fwd_files=fnFs, rev_files=fnRs))
 
-# Extract sample names, assuming filenames have format: SAMPLENAME_XXX.fastq
+# Extract sample names, assuming filenames have format: {ds}_{resource]_{sample}_{factor}_R1-trimmed.fastq
 sample.names = lapply(str_split(basename(fnFs), '_'), function(x){str_c(x[snakemake@params[['samp']]],collapse = "_")})
+study.name = str_split(basename(fnFs), '_')[[1]][1]
+
 # Plot the quality of the reads
+print('Generating Quality Plots')
 plotQualityProfile(fnFs)+
 ggsave(snakemake@output[['fwd_err']])
 plotQualityProfile(fnRs)+
@@ -34,57 +38,68 @@ ggsave(snakemake@output[['rev_err']])
 print(paste('Quality plots saved to:', dirname(snakemake@output[['fwd_err']])))
 
 # Place filtered files in filtered/ subdirectory
-filtFs = file.path( 'data/filtered', paste0(sample.names, "_R1_filt.fastq.gz"))
-filtRs = file.path( 'data/filtered', paste0(sample.names, "_R2_filt.fastq.gz"))
+print('Filtering reads')
+filtFs = file.path( 'data/filtered', paste0(study.name,'_sequencing_',sample.names, "_R1_filtered.fastq.gz"))
+filtRs = file.path( 'data/filtered', paste0(study.name,'_sequencing_',sample.names, "_R2_filtered.fastq.gz"))
 out = filterAndTrim(fnFs, filtFs, fnRs, filtRs,
-					 maxN=0, maxEE=c(5,5), truncQ=5, rm.phix=TRUE,
+					 maxN=0, maxEE=c(snakemake@params[['maxEE_fwd']],snakemake@params[['maxEE_rev']]), truncQ=snakemake@params[['truncQ']],
+					 rm.phix=snakemake@params[['rmphix']], maxLen = snakemake@params[['maxLen']], minLen=snakemake@params[['minLen']],
 					 compress=TRUE, multithread=TRUE) # On Windows set multithread=FALSE
 
-print('Reads that survived filtering:')
-print(out)
+exists <- file.exists(filtFs) & file.exists(filtRs)
+filtFs <- filtFs[exists]
+filtRs <- filtRs[exists]
+sample.names.filt = lapply(str_split(basename(filtFs), '_'), function(x){str_c(x[snakemake@params[['samp']]],collapse = "_")})
+
+if (any(exists==FALSE)){
+	print('The fliter has removed all the reads from the following files, thus they will no longer be analyized')
+	print(filtFs[exists==FALSE])
+	print(filtRs[exists==FALSE])
+}
 
 # Learn error rates
+print('Learning error rates')
 errF <- learnErrors(filtFs, multithread=TRUE)
 errR <- learnErrors(filtRs, multithread=TRUE)
 plotErrors(errF, nominalQ=TRUE)+
 	ggsave(snakemake@output[['base_err']])
 
 # Dereplication
+print('Dereplicating')
 derepFs <- derepFastq(filtFs, verbose=TRUE)
 derepRs <- derepFastq(filtRs, verbose=TRUE)
 
 # Name the derep-class objects by the sample names
-names(derepFs) <- sample.names
-names(derepRs) <- sample.names
+names(derepFs) <- sample.names.filt
+names(derepRs) <- sample.names.filt
 
 # sample Infrence
+print('DADA2 Core')
+setDadaOpt(HOMOPOLYMER_GAP_PENALTY=snakemake@params[['HOMOPOLYMER_GAP_PENALTY']], BAND_SIZE=snakemake@params[['BAND_SIZE']])
 dadaFs <- dada(derepFs, err=errF, multithread=TRUE)
 dadaRs <- dada(derepRs, err=errR, multithread=TRUE)
 
 # merge pair reads
+print('Merge pair end reads')
 mergers <- mergePairs(dadaFs, derepFs, dadaRs, derepRs, verbose=TRUE)
 
 # construct ASV table
+print('Creating ASV table')
 seqtab <- makeSequenceTable(mergers)
-print('sequence lengths:')
+print('Sequence lengths of ASVs:')
 table(nchar(getSequences(seqtab)))
 
 # Remove Chimeras
-seqtab.nochim <- removeBimeraDenovo(seqtab, method="consensus", multithread=TRUE, verbose=TRUE)
+print('Remove Chimeras')
+seqtab.nochim = removeBimeraDenovo(seqtab, method="consensus", multithread=TRUE, verbose=TRUE)
 write.table(seqtab.nochim, file=snakemake@output[['asv_table']], sep="\t")
 
 # Track Reads
-getN <- function(x) sum(getUniques(x))
-track <- cbind(out, sapply(dadaFs, getN), sapply(dadaRs, getN), sapply(mergers, getN), rowSums(seqtab.nochim))
+getN = function(x) sum(getUniques(x))
+prefilt_reads = data.frame(samp=unlist(sample.names), reads_in = out[,1], reads_filt = out[,2]) 
+filt_reads = data.frame(samp=unlist(sample.names.filt), denoisedF = sapply(dadaFs, getN), denoisedR = sapply(dadaRs, getN), merged = sapply(mergers, getN), nonchim = rowSums(seqtab.nochim))
+track = full_join(prefilt_reads, filt_reads)
 # If processing a single sample, remove the sapply calls: e.g. replace sapply(dadaFs, getN) with getN(dadaFs)
-colnames(track) <- c("input", "filtered", "denoisedF", "denoisedR", "merged", "nonchim")
-rownames(track) <- sample.names
-
 print('Reads Surviving each step')
 print(track)
-
-
-
-
-
 
