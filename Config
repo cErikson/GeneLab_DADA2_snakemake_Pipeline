@@ -1,6 +1,5 @@
 #        ++==============================================++
 #        || DADA2 pipeline for marker gene GLDS datasets ||
-#        ||             Paired End Edition               ||
 #        ||             Configuration File               ||
 #        ++==============================================++
 
@@ -27,6 +26,9 @@
 # 4. Adjust the parameters in this file to meet the needs of the experiment. Please read through each parameter discription. Failure to do so may give you results that look good, but are bad.
 # 5. Run `snakemake all -j <num_cpu_cores>`, and go grab lunch, the pipeline should finish in two hours for a ~20gb dataset on a 8 core machine using default parameters.
 
+#### GLDS #####
+glds_num: GLDS-126
+
 ##### Configuration for CutAdapt #####
 min_len_dis: 50 # Default: 0. Discard reads shorter than LENGTH.
 error_rate: 0.1 #  Default: 0.1. Maximum allowed error rate (no. of errors divided by the length of the matching region).
@@ -34,9 +36,12 @@ pair_filter: any # Default: any. Which of the reads in a paired-end read have to
 discard_untrimmed: True # Default: True, With EMP primers: likely False. Discards reads in which the primers were not trimmed. If your sequencing primers prime off your insert primers, thus the insert primers are not secquenced, then False. Otherwise True will help clean up messy reads.
 no_indels: True # Default: True. Allow only mismatches in alignments. 
 max_n: 0  # Default: 0. DADA2 can not handle N's. Discard reads with more than COUNT 'N' bases. If COUNT is a number between 0 and 1, it is interpreted as a fraction of the read length
+qual_trim_5: 25
+qual_trim_3: 25
+trim_end_n: True 
 
 ##### Configuration for DADA2 #####
-samp_fields: [3,4] # Sample names to be extracted from the fastq filenames and used for sample names in the output table, under_score delimited. e.g. feild1_feild-2_feild-3.0
+samp_fields: [3,4,5] # Sample names to be extracted from the fastq filenames and used for sample names in the output table, under_score delimited. e.g. feild1_feild-2_feild-3.0
 
 ## filtering ##
 truncQ: 15 # Default 2. Truncate reads at the first instance of a quality score less than or equal to truncQ.
@@ -60,6 +65,6 @@ add_taxa_ds: NULL # Default: NULL. Fasta header format `>Kingom;Phylum;Class;Ord
 #   - # File ...
 
 ##### DADA2BIOM #####
-isa_dir: data/metadata/isa_files
-isa_samp_file: # The stripped name of the study file. s_SRP098151_2B.txt --> SRP098151_2B
-isa_samp_feild: 'Sample Name' # The label of the the sample name field. Probably `Sample Name`. quote with ``
+isa_samp_file: s_PRJEB14961.txt # The stripped name of the study file. s_SRP098151_2B.txt --> SRP098151_2B
+isa_samp_feild: 'Sample\ Name' # The label of the the sample name field. Probably `Sample Name`. quote with ``
+isa_regex: \(.*?\)_.*

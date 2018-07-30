@@ -8,6 +8,7 @@
 library(tidyverse)
 library(dada2)
 
+
 # Log errors/ messages to the snakemake log
 log_file=file(snakemake@log[[1]], open='wt')
 sink(log_file)
@@ -28,19 +29,10 @@ print(data.frame(fwd_files=fnFs, rev_files=fnRs))
 sample.names = lapply(str_split(basename(fnFs), '_'), function(x){str_c(x[snakemake@params[['samp']]],collapse = "_")})
 study.name = str_split(basename(fnFs), '_')[[1]][1]
 
-# Plot the quality of the reads
-print('Generating Quality Plots')
-plotQualityProfile(fnFs)+
-ggsave(snakemake@output[['fwd_err']])
-plotQualityProfile(fnRs)+
-ggsave(snakemake@output[['rev_err']])
-
-print(paste('Quality plots saved to:', dirname(snakemake@output[['fwd_err']])))
-
 # Place filtered files in filtered/ subdirectory
 print('Filtering reads')
-filtFs = file.path( 'data/filtered', paste0(study.name,'_sequencing_',sample.names, "_R1_filtered.fastq.gz"))
-filtRs = file.path( 'data/filtered', paste0(study.name,'_sequencing_',sample.names, "_R2_filtered.fastq.gz"))
+filtFs = file.path( 'data/filtered', paste0(study.name,'_16s-amplicon-sequencing_',sample.names, "_R1-filtered.fastq.gz"))
+filtRs = file.path( 'data/filtered', paste0(study.name,'_16s-amplicon-sequencing_',sample.names, "_R2-filtered.fastq.gz"))
 out = filterAndTrim(fnFs, filtFs, fnRs, filtRs,
 					 maxN=0, maxEE=c(snakemake@params[['maxEE_fwd']],snakemake@params[['maxEE_rev']]), truncQ=snakemake@params[['truncQ']],
 					 rm.phix=snakemake@params[['rmphix']], maxLen = snakemake@params[['maxLen']], minLen=snakemake@params[['minLen']],

@@ -33,7 +33,7 @@ def yield_fasta(fasta, gz=False, rev_comp=False):
 # Gather files to be processed.
 file_ids = glob_wildcards(WORKDIR+"data/sequencing/{id}_{read}.fastq.gz")
 # Grab the GLDS number.
-DS_NUM=file_ids[0][0].split('_')[0]
+DS_NUM=config['glds_num']
 
     
 ##### RULES #####
@@ -50,22 +50,60 @@ rule help:
         print('''
         ++==============================================++
         || DADA2 pipeline for marker gene GLDS datasets ||
-        ||             Paired End Edition               ||
         ++==============================================++
         
         
         Please see the Config file for set up of the pipeline.
         ''')
 
-rule fastqc:
+rule fastqc_raw:
+    input: 
+        WORKDIR+'data/sequencing/{id}_{read}.fastq.gz'
+    output:
+        'report/fastqc/raw/{id}_{read}_fastqc.html'
     shell:
         '''
-        zcat data/sequencing/*R1.fastq.gz | fastqc stdin -o ./report/fastqc
-        mv ./report/fastqc/stdin_fastqc.html ./report/fastqc/R1_fastqc.html
-        mv ./report/fastqc/stdin_fastqc.zip ./report/fastqc/R1_fastqc.zip
-        zcat data/sequencing/*R2.fastq.gz | fastqc stdin -o ./report/fastqc
-        mv ./report/fastqc/stdin_fastqc.html ./report/fastqc/R2_fastqc.html
-        mv ./report/fastqc/stdin_fastqc.zip ./report/fastqc/R2_fastqc.zip
+        fastqc {input} -o report/fastqc/raw/
+        '''
+        
+rule fastqc_trimmed:
+    input: 
+        WORKDIR+'data/trimmed/{id}_{read}-trimmed.fastq'
+    output:
+        'report/fastqc/trimmed/{id}_{read}-trimmed_fastqc.html'
+    shell:
+        '''
+        fastqc {input} -o report/fastqc/trimmed/
+        '''
+        
+rule fastqc_filtered:
+    input: 
+        WORKDIR+'data/filtered/{id}_{read}-filtered.fastq.gz'
+    output:
+        'report/fastqc/filtered/{id}_{read}-filtered_fastqc.html'
+    shell:
+        '''
+        fastqc {input} -o report/fastqc/filtered/
+        '''
+      
+rule raw_multiqc:
+    input:
+        raw=expand('report/fastqc/raw/{IDS}_{READ}_fastqc.html', IDS=file_ids.id, READ=file_ids.read)
+    shell:
+        '''
+        multiqc -d -f -ip -o report/ report/
+        '''
+        
+rule full_multiqc:
+    input:
+        raw=expand('report/fastqc/raw/{IDS}_{READ}_fastqc.html', IDS=file_ids.id, READ=file_ids.read),
+        trimmed=expand('report/fastqc/trimmed/{IDS}_{READ}-trimmed_fastqc.html', IDS=file_ids.id, READ=file_ids.read),
+        filtered=expand('report/fastqc/filtered/{IDS}_{READ}-filtered_fastqc.html', IDS=file_ids.id, READ=file_ids.read)
+    output:
+        'report/multiqc_report.html'
+    shell:
+        '''
+        multiqc -d -f -ip -o report/ report/
         '''
 
 rule revcomp_primer:
@@ -86,27 +124,28 @@ rule cutadapt:
         fwd_revcomp_prime='data/metadata/primers/fwd_revcomp_primers.fasta',
         rev_revcomp_prime='data/metadata/primers/rev_revcomp_primers.fasta'
     output:
-        fwd_trim=WORKDIR+'data/trim/{ID}_R1-trimmed.fastq',
-        rev_trim=WORKDIR+'data/trim/{ID}_R2-trimmed.fastq'
-    log:
-        lambda wc: WORKDIR+'logs/cutadapt_{ID}'.format(ID=wc.ID)
+        fwd_trim=WORKDIR+'data/trimmed/{ID}_R1-trimmed.fastq',
+        rev_trim=WORKDIR+'data/trimmed/{ID}_R2-trimmed.fastq'
+#    log:
+#        lambda wc: WORKDIR+'report/cutadapt/cutadapt_{ID}'.format(ID=wc.ID)
     params:
         discard = '--discard-untrimmed ' if config['discard_untrimmed'] is True else '',
-        indels = '--no-indels ' if config['no_indels'] is True else ''
+        indels = '--no-indels ' if config['no_indels'] is True else '',
+        trim_n='--trim-n ' if config['trim_end_n'] is True else ''
     shell:
         '''
-         cutadapt -g file:{input.fwd_prime} -G file:{input.rev_revcomp_prime} -a file:{input.rev_prime} -A file:{input.fwd_revcomp_prime} -o {output.fwd_trim} -p {output.rev_trim} --max-n={config[max_n]} -m {config[min_len_dis]} --error-rate {config[error_rate]} {params.discard}{params.indels}--pair-filter {config[pair_filter]} {input.fwd} {input.rev} > {log} 
+         cutadapt -g file:{input.fwd_prime} -G file:{input.rev_prime} -a file:{input.rev_revcomp_prime} -A file:{input.fwd_revcomp_prime} -o {output.fwd_trim} -p {output.rev_trim} --max-n={config[max_n]} -m {config[min_len_dis]} --error-rate {config[error_rate]} {params.discard}{params.indels}{params.trim_n}--pair-filter {config[pair_filter]} {input.fwd} {input.rev} > {log} 
         ''' 
 
 rule dada2:
     input:
-        fwd=expand(WORKDIR+'data/trim/{IDS}_R1-trimmed.fastq', IDS=set(file_ids.id)),
-        rev=expand(WORKDIR+'data/trim/{IDS}_R2-trimmed.fastq', IDS=set(file_ids.id))
+        fwd=expand(WORKDIR+'data/trimmed/{IDS}_R1-trimmed.fastq', IDS=set(file_ids.id)),
+        rev=expand(WORKDIR+'data/trimmed/{IDS}_R2-trimmed.fastq', IDS=set(file_ids.id))
     output:
-        fwd_err='report/plots/fwd_quals.png',
-        rev_err='report/plots/rev_quals.png',
         base_err='report/plots/base_error_rates.png',
-        asv_table='data/{GLDS}_asvtable.tsv'
+        asv_table='data/{GLDS}_metagenomics_dada2-asv-matrix.tsv'.format(GLDS=DS_NUM),
+        fwd_filt=expand(WORKDIR+'data/filtered/{IDS}_R1-filtered.fastq.gz', IDS=set(file_ids.id)),
+        rev_filt=expand(WORKDIR+'data/filtered/{IDS}_R2-filtered.fastq.gz', IDS=set(file_ids.id))
     params:
         wd=WORKDIR,
         samp=config['samp_fields'],
@@ -118,45 +157,37 @@ rule dada2:
         truncQ=config['truncQ'],
         BAND_SIZE=config['BAND_SIZE'],
         HOMOPOLYMER_GAP_PENALTY=config['HOMOPOLYMER_GAP_PENALTY']
-        
-    
-    log:
-        'logs/dada2.txt'
     script:
         'scripts/dada2.R'
         
 rule assign_tax:
     input:
-        asv_table='data/{GLDS}_asvtable.tsv'
+        asv_table='data/{GLDS}_metagenomics_dada2-asv-matrix.tsv'
     output:
-        tax_table='data/{GLDS}_taxtable.tsv'
+        tax_table='data/{GLDS}_metagenomics_dada2-taxonomy-matrix.tsv'
     params:
         wd=WORKDIR,
         tax_train=config['tax_train'],
         tax_species=config['tax_species'],
         add_taxa_ds=config['add_taxa_ds']
-    log:
-        'logs/assign_tax.txt'
     script:
         'scripts/assign_tax.R'
 
 rule DADA2BIOM:
     input:
-        counts='data/{GLDS}_asvtable.tsv',
-        taxa='data/{GLDS}_taxtable.tsv'
+        asv='data/{GLDS}_metagenomics_dada2-asv-matrix.tsv',
+        taxa='data/{GLDS}_metagenomics_dada2-taxonomy-matrix.tsv'
     output:
-        biom='data/{GLDS}.biom'
+        biom='data/{GLDS}_metagenomics_dada2-json.biom'
     params:
-        wd=WORKDIR,
-        isa_dir=config['isa_dir'],
         isa_samp_file=config['isa_samp_file'],
         isa_samp_feild=config['isa_samp_feild']
-    log:
-        'logs/dada2biom.txt'
-    script:
-        'scripts/dada2biom.R'
-    
+    shell:
+        '''
+        scripts/dada2biom.py {input.asv} {output.biom} -t {input.taxa} -s data/metadata/isa_files/{config[isa_samp_file]} -c {config[isa_samp_feild]} -r {config[isa_regex]}
+        '''
 
 rule all:
     input: 
-         'data/{GLDS}.biom'.format(GLDS=DS_NUM)
+         biom='data/{GLDS}_metagenomics_dada2-json.biom'.format(GLDS=DS_NUM),
+         report='report/multiqc_report.html'
