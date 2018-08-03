@@ -1,4 +1,12 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
+"""
+Project:
+@author: Christian Erikson
+
+TODO: 
+select if taxa is qiime
+taxa head space delim?    
+"""
 ##### Debug #####
 testing=False
 
@@ -22,7 +30,7 @@ if __name__ == "__main__" and testing != True:
     parser.add_argument("-s", "--meta", help="Sample metadata, in which rows are samples", type=str, default=False)
     parser.add_argument("-d", "--delim", help="The delimiter used in sample metadata.", type=str, default='\t')
     parser.add_argument("-c", "--samp_col", help="The column name, which has sample ids. Ids need to have a coraspnding entry in the ASV table, which may be a substring int the ASV.", type=str, default=False)
-    parser.add_argument("-r", "--regex", help="Regex used to extract sample id names from the ASV ids", type=str, default=False)
+    parser.add_argument("-r", "--regex", help="Regex used to extract sample id names from the ASV ids", type=str, default='(.*)')
     parser.add_argument("-n", "--study_id", help="Study ID to be used in the Biom ", type=str, default='DADA2 study')
     # Parse arguments
     args = parser.parse_args()
@@ -43,7 +51,7 @@ else:   # Else test
 if args.regex is not False:
     rec=re.compile(args.regex)
 
-
+# Read ASV counts
 with open(args.asv, 'r') as fh:
     taxa_id=[x.strip('\'\"\n') for x in fh.readline().strip().split(args.delim)]
     counts=[[y.strip('\'\"\n') for y in x.strip().split(args.delim)] for x in fh]
@@ -58,23 +66,26 @@ if args.regex is not False:
             sys.exit('The regex `{}` failed to match `{}`'.format(rec.pattern, ident))
     samp_id=ext
 
+# Read Taxa
 taxa={}
 tax_lev={'Kingdom':'k__', 'Phylum':'p__', 'Class':'c__', 'Order':'o__', 'Family':'f__', 'Genus':'g__', 'Species':'s__'}
 if args.taxa is not False:
     with open(args.taxa, 'r') as fh:
         taxa_head=[x.strip('\'\"\n') for x in fh.readline().strip().split()]  ### FIXXXXXXXXXXX
         for line in fh:
-            cell=line.strip('\n\'\"').split(args.delim)
+            cell=[x.strip('\n\'\"') for x in line.split(args.delim)]
             taxa[cell[0]]=[tax_lev[y]+x for x,y in zip(cell[1:],taxa_head)]
     try:
         obs_meta=[{'taxonomy':taxa.pop(x)} for x in taxa_id]
     except KeyError as e:
-        sys.exit('The taxonomic metadata was not found for: '+str(e))
+        pdb.set_trace()
+        sys.exit('The taxonomic metadata was not found for: '+str(e)+'\n A key in the metadat is '+str(list(taxa.keys())[0])  )
     if len(taxa) is not 0:
         sys.stderr.write('After binding taxa metadata, the following entries went unused:\n'+ str(taxa.keys()) )
 else:
     obs_meta=None
 
+# Read sample metadata
 samp={}
 if args.meta is not False:
     with open(args.meta, 'r') as fh:
@@ -85,13 +96,13 @@ if args.meta is not False:
             sys.exit('The Sample ID column was not found in the metadata.\n'+(str(e)))
         samp_head.pop(sname)
         for line in fh:
-            cell=line.strip('\n\'\"').split(args.delim)
-            name=cell.pop(sname)
-            samp[name]={x:y for x,y in zip(samp_head, cell)}
+            cell=line.split(args.delim)
+            name=cell.pop(sname).strip('\n\'\"')
+            samp[name]={x.strip('\n\'\"'):y.strip('\n\'\"') for x,y in zip(samp_head, cell)}
     try:
         samp_meta=[samp.pop(x) for x in samp_id]
     except KeyError as e:
-        sys.exit('The sample metadata was not found for key: '+str(e))
+        sys.exit('The sample metadata was not found for key: '+str(e)+'\nThe keys are: '+str(samp.keys()) )
     if len(taxa) is not 0:
         sys.stderr.write('After binding taxa metadata, the following entries went unused:\n'+ str(samp.keys()) )
 else:

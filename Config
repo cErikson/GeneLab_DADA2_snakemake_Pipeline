@@ -7,33 +7,34 @@
 ###       Only use spaces, no tabs.(I know, it sucks)
 
 ##### Libraries and Programs #####
-# Unix: fastqc, biom
-# Python3: snakemake, cutadapt, multiqc
-# R: tidyverse, dada2, biom, risa
+# Unix: fastqc
+# Python3: snakemake, cutadapt, multiqc, biom
+# R: tidyverse, dada2
 
 ##### Asumptions #####
 # 0. Sequencing files are found under `data/sequencing`
-# 1. Reads are paired end reads
-# 2. Reads have been demuliplexed. Any barcode used for pcr/optical duplicates has been used.
-# 3. Gzipped fastq file follow the `<Accession #>_<resource category>_<Sample Name>_(<Factor Level>_)+.<read>.fastq.gz` format. Where (...)+ indicates one or more factor levels, delimited by under_scores. Read feild is `R1` or `R2`
-# 
+# 1. Reads have been demuliplexed. Any barcode used for pcr/optical duplicates has been used.
+# 2. Gzipped fastq file follow the `<Accession #>_<resource category>_<Sample Name>_(<Factor Level>_)+.<read>.fastq.gz` format. Where (...)+ indicates one or more factor levels, delimited by under_scores. Read feild is `R1` or `R2`
 
 ##### Instructions #####
 # 0. Run `snakemake setup`
-# 1. Add primers to /data/metadata/primers/[fwd_primer.fastq, rev_primers.fastq]
-# 2. Unzip the isa files into `data/metadata/isa_files`, there should not be any isa files in folders in this directory. 
-# 3. Run `snakemake fastqc` to get a sense of the read quality.
-# 4. Adjust the parameters in this file to meet the needs of the experiment. Please read through each parameter discription. Failure to do so may give you results that look good, but are bad.
-# 5. Run `snakemake all -j <num_cpu_cores>`, and go grab lunch, the pipeline should finish in two hours for a ~20gb dataset on a 8 core machine using default parameters.
+# 1. Add primers to /data/metadata/primers/[fwd_primer.fasta, rev_primers.fasta]
+# 2. Unzip the metadata files into `data/metadata/`, there should not be any isa files in folders in this directory. 
+# 3. Run `snakemake raw_multiqc -j <cores>` to get a sense of the read quality, look under `report/`
+# 4. Adjust the parameters in this file to meet the needs of the experiment. Please read through each parameter discription.
+#    Failure to do so may give you results that look good, but are bad. 
+#    Sections marked Optional probably don't need to be touched for a standard illumina run
+# 5. Run `snakemake all -j <num_cpu_cores>`, and go grab lunch, the pipeline should finish in two hours for a ~20gb dataset 
+#    on a 8 core machine using default parameters.
 
-#### GLDS #####
-glds_num: GLDS-126
+#### study #####
+glds_num: GLDS-126 # Study identifier prefix
 
 ##### Configuration for CutAdapt #####
 min_len_dis: 50 # Default: 0. Discard reads shorter than LENGTH.
 error_rate: 0.1 #  Default: 0.1. Maximum allowed error rate (no. of errors divided by the length of the matching region).
 pair_filter: any # Default: any. Which of the reads in a paired-end read have to match the filtering criterion in order for the pair to be filtered.
-discard_untrimmed: True # Default: True, With EMP primers: likely False. Discards reads in which the primers were not trimmed. If your sequencing primers prime off your insert primers, thus the insert primers are not secquenced, then False. Otherwise True will help clean up messy reads.
+discard_untrimmed: True # Default: True. With EMP primers: likely False. Discards reads in which the primers were not trimmed. If your sequencing primers prime off your insert primers, thus the insert primers are not secquenced, then False. Otherwise True will help clean up messy reads.
 no_indels: True # Default: True. Allow only mismatches in alignments. 
 max_n: 0  # Default: 0. DADA2 can not handle N's. Discard reads with more than COUNT 'N' bases. If COUNT is a number between 0 and 1, it is interpreted as a fraction of the read length
 qual_trim_5: 25
@@ -41,30 +42,204 @@ qual_trim_3: 25
 trim_end_n: True 
 
 ##### Configuration for DADA2 #####
-samp_fields: [3,4,5] # Sample names to be extracted from the fastq filenames and used for sample names in the output table, under_score delimited. e.g. feild1_feild-2_feild-3.0
+threads: 8
 
-## filtering ##
-truncQ: 15 # Default 2. Truncate reads at the first instance of a quality score less than or equal to truncQ.
-maxEE_fwd: 2 #Default 2. (no EE filtering). After truncation, reads with higher than maxEE "expected errors" will be discarded. Expected errors are calculated from the nominal definition of the quality score: EE = sum(10^(-Q/10))
-maxEE_rev: 2 # Default 2. Save as above but for read 2.
-maxLen: 1000 #Default Inf (no maximum). Remove reads with length greater than maxLen. maxLen is enforced before trimming and truncation.
-minLen: 20 #Default 20. Remove reads with length less than minLen. minLen is enforced after trimming and truncation.
-rmphix: TRUE #Default TRUE. If TRUE, discard reads that match against the phiX genome, as determined by isPhiX.
+# The names for the samples can be spcified in a nomber of ways. By a feild in the filename, by a regex of the filename, or full filenames.   
+# By Feild: `-s` specifies the feilds, and `-S` specifies the delimiter. The options `-s 2 3 -S _` on filename `GLDS-126_samp4_space_date12345.R1.fastq.gz` would yeild `samp4_space`. 1-based
+# By Regex: `-R' specifies a regex. The option `-R GLDS-126_\(\\w*?\)_.*` on `GLDS-126_samp4_space.R1.fastq.gz would yeild `samp4`. escape charaters need double backslashes and perenstes need to be escapped.
+# By full name: Do nothing  
+samp_fields: -s 1 2 3 4 5 -S _ # Sample names to be extracted from the fastq filenames and used for sample names in the output table, under_score delimited. e.g. feild1_feild-2_feild-3.0
 
-## Core ##
-BAND_SIZE: 16 #Default: 16. 454_Seq: 32. When set, banded Needleman-Wunsch alignments are performed. Banding restricts the net cumulative number of insertion of one sequence relative to the other. If DADA is applied to marker genes with high rates of indels, such as the ITS region in fungi, the BAND_SIZE parameter should be increased. Setting BAND_SIZE to a negative number turns off banding (i.e. full Needleman-Wunsch).
-HOMOPOLYMER_GAP_PENALTY: NULL #Default: NULL, 454_seq: -1. The cost of gaps in homopolymer regions (>=3 repeated bases). Default is NULL, which causes homopolymer gaps to be treated as normal gaps.
+##### Filtering ######
+### NOTE: For options truncq to maxee, two space seperated options should be supplied for paird end sequencing. ###
 
-## Taxa ##
-# Taxonomic trainning is first done on tax_train, tax_species. Then carried out in order on add_taxa_ds. If duplicate hits are found the sequence in the prior dataset has precedence.
-tax_train: /home/christian/lab/ref_datasets/silva/silva_v132/silva_nr_v132_train_set.fa.gz # The path to the main taxonomic reference fasta file, or an R connection Can be compressed. This reference fasta file should be formatted so that the id lines correspond to the taxonomy (or classification) of the associated sequence, and each taxonomic level is separated by a semicolon. Eg.>Kingom;Phylum;Class;Order;Family;Genus;
-tax_species: /home/christian/lab/ref_datasets/silva/silva_v132/silva_species_assignment_v132.fa.gz
-add_taxa_ds: NULL # Default: NULL. Fasta header format `>Kingom;Phylum;Class;Order;Family;Genus;`
-#   - # File 1
-#   - # File 2
-#   - # File ...
+#  Default Inf (no EE filtering). Two are
+# needed for pairedend. vaules After truncation, reads
+# with higher than maxEE 'expected errors' will be
+# discarded. Expected errors are calculated from the
+# nominal definition of the quality score: EE =
+# sum(10^(-Q/10))
+maxee: 2 2
+
+# Default TRUE. If TRUE, discard reads that
+# match against the phiX genome, as determined by
+# isPhiX.
+rm_phix: TRUE
+
+#  Default 0. After truncation, reads contain
+# a quality score less than minQ will be discarded.
+minq: 0 0
+
+### Optional ###
+#  Default 2. Truncate reads at the first
+# instance of a quality score less than or equal to
+# truncQ.
+truncq: 2 2
+
+#  Default 0 (no truncation). Truncate reads
+# after truncLen bases. Reads shorter than this are
+# discarded.
+trunclen: 0 0
+
+#  Default 0. The number of nucleotides to
+# remove from the start of each read. If both truncLen
+# and trimLeft are provided, filtered reads will have
+# length truncLen-trimLeft.
+trimleft: 0 0
+
+#  Default Inf (no maximum). Remove reads
+# with length greater than maxLen. maxLen is enforced
+# before trimming and truncation.
+maxlen: Inf Inf
+
+#  Default 20. Remove reads with length less
+# than minLen. minLen is enforced after trimming and
+# truncation.
+minlen: 20 20
+
+#  Default 0. After truncation, sequences
+# with more than maxN Ns will be discarded. Note that
+# dada does not allow Ns.
+maxn: 0 0
+
+# Default 1e5. The number of records (reads)
+# to read in and filter at any one time. This controls
+# the peak memory requirement so that very large fastq
+# files are supported. See FastqStreamer for details
+n_reads: 10000
+### End Optional ###
+
+###### Core ######
+# Method to use in removeBimeraDenovo. `pooled`,
+# `consensus`, `per-sample`, `FALSE` to skip. Default consensus
+chimera_rm: consensus
+
+### Optional ###
+# Default 1e6. The minimum number of reads to use for
+# error rate learning. Samples are read into memory
+# until at least this number of reads has been reached,
+#_or all provided samples have been read in.
+learn_reads_n: 1e6
+         
+# This parameter sets the threshold for when DADA2 calls
+# unique sequences significantly overabundant, and
+# therefore creates a new cluster with that sequence as
+# the center. The default value is 1e-40, which is a
+# conservative setting to avoid making false positive
+# inferences, but which comes at the cost of reducing
+# the ability to identify some rare variants.               
+omega_a: 1e-40
+  
+# If TRUE, the dada(...) error model takes into account
+# the consensus quality score of the dereplicated unique
+# sequences. If FALSE, quality scores are ignored. The
+# default is TRUE, however if applying DADA2 to
+# pyrosequenced data it is recommended to set USE_QUALS
+# to FALSE, as quality scores are not informative about
+# substitution error rates in pyrosequencing.
+use_quals: TRUE
+
+# If TRUE, a 5-mer distance screen is performed prior to
+# performing each pairwise alignment, and if the 5mer-
+# distance is greater than KDIST_CUTOFF, no alignment is
+# performed. TRUE by default.
+use_kmers: TRUE
+
+# The default value of 0.42 was chosen to screen pairs
+# of sequences that differ by greater 10 percent, and
+# was calibrated on Illumina sequenced 16S amplicon
+# data. The assumption is that sequences that differ by
+# such a large amount cannot be linked by amplicon
+# errors (i.e. if you sequence one, you won`t get a read
+# of other) and so careful (and costly) alignment is
+# unnecessary.
+kdist_cutoff: 0.42
+
+# When set, banded Needleman-Wunsch alignments are
+# performed. Banding restricts the net cumulative number
+# of insertion of one sequence relative to the other.
+# The default value of BAND_SIZE is 16. If DADA is
+# applied to marker genes with high rates of indels,
+# such as the ITS region in fungi, the BAND_SIZE
+# parameter should be increased. Setting BAND_SIZE to a
+# negative number turns off banding (i.e. full
+# Needleman-Wunsch).
+band_size: 16
+
+# The path to the score matrix for the Needleman-Wunsch
+# alignment. This is a 4x4 matrix as no ambiguous
+# nucleotides are allowed. Default is nuc44: -4 for
+# mismatches, +5 for matches.
+score_matrix: nuc44
+ 
+# The cost of gaps in the Needleman-Wunsch alignment.
+# Default is -8. 
+gap_penalty: -8
+
+# The cost of gaps in homopolymer regions (>=3 repeated
+# bases). Default is NULL, which causes homopolymer gaps
+# to be treated as normal gaps.
+homopolymer_gap_penalty: NULL
+
+# The minimum fold-overabundance for sequences to form
+# new clusters. Default value is 1, which means this
+# criteria is ignored.
+min_fold: 1
+
+# The minimum hamming-separation for sequences to form
+# new clusters. Default value is 1. which means this
+# criteria is ignored.
+min_hamming: 1
+
+# The maximum number of clusters. Once this many
+# clusters have been created, the algorithm terminates
+# regardless of whether the statistical model suggests
+# more sample sequences exist. If set to 0 this argument
+# is ignored. Default value is 0.
+max_clust: 0
+
+# The maximum number of steps when selfConsist=TRUE. If
+# convergence is not reached in MAX_CONSIST steps, the
+# algorithm will terminate with a warning message.
+# Default value is 10.
+max_consist: 10
+
+### End Optional ###
+
+###### Taxa ########
+#The path to the taxa trainning file
+taxa_train: /home/christian/lab/ref_datasets/silva/silva_v132/silva_nr_v132_train_set.fa.gz
+
+#The path to species training file
+species_train: /home/christian/lab/ref_datasets/silva/silva_v132/silva_species_assignment_v132.fa.gz
+
+### Optional ###
+# (Optional). Default 50. The minimum bootstrap
+# confidence for assigning a taxonomic level.
+minboot: 50
+ 
+# (Optional). Default FALSE. If TRUE, the reverse-
+# complement of each sequences will be used for
+# classification if it is a better match to the
+# reference sequences than the forward sequence.
+tryrc: FALSE
+    
+# (Optional). Default is <Kingdom Phylum Class Order
+# Family Genus Species>. The taxonomic levels being
+# assigned. Truncates if deeper levels not present in
+# training fasta.      
+taxlevels: Kingdom Phylum Class Order Family Genus Species
+                      
+# (Optional). Default FALSE. Defines the behavior when
+# multiple exact matches against different species are
+# returned. By default only unambiguous identifications
+# are return. If TRUE, a concatenated string of all
+# exactly matched species is returned. If an integer is
+# provided, multiple identifications up to that many are
+allowmultiple: FALSE
+### End Optional ###
 
 ##### DADA2BIOM #####
-isa_samp_file: s_PRJEB14961.txt # The stripped name of the study file. s_SRP098151_2B.txt --> SRP098151_2B
-isa_samp_feild: 'Sample\ Name' # The label of the the sample name field. Probably `Sample Name`. quote with ``
-isa_regex: \(.*?\)_.*
+meta_samp_file: s_PRJEB14961.txt # The stripped name of the study file. s_SRP098151_2B.txt --> SRP098151_2B
+meta_samp_feild: 'Sample\ Name' # The label of the the sample name field. Probably `Sample Name`. quote with ``
+meta_regex: .*sequencing_\(.*?\)_.*
