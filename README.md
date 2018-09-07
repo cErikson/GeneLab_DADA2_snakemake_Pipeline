@@ -28,3 +28,50 @@ Failure to do so may give you results that look good, but are bad.
     Sections marked Optional probably don't need to be touched for a standard illumina run
  5. Run `snakemake all -j <num_cpu_cores>`, and go grab lunch, the pipeline should finish in two hours for a ~20gb dataset 
  on a 8 core machine using default parameters.
+
+# Output
+```
+├── Config		# Configuration file for pipeline
+├── data
+│   ├── GLDS-146_metagenomics_dada2-asv-matrix.tsv		# A flat tsv containing counts of amplicon sequence variants(ASV) by sample
+│   ├── GLDS-146_metagenomics_dada2-biom.biom			# A BIOM v1.0 (json) file containing the ASV counts, taxanomic assignment, asnd sample metadata
+│   ├── GLDS-146_metagenomics_dada2-taxonomy-matrix.tsv	# A flat tsv whos order corasponds to the asv. Which contains taxanomic assignments to ASV.
+│   ├── metadata
+│   │   ├── isa_files
+│   │   │   ├── a_{name}.txt		# Assay metadata
+│   │   │   ├── i_{name}.txt		# Investigation metadata
+│   │   │   └── s_{name}.txt		# Sample metadata
+│   │   └── primers
+│   │       ├── fwd_primers.fasta	# Forward primers that were used for trimming
+│   │       └── rev_primers.fasta	# Reverse primers that were used for trimming
+│   ├── sequencing
+│   │   └── {study name}_16s-amplicon-sequencing_{sample id}_{factors}_{read #}-filtered.fastq.gz	# Raw sequencing reads 
+│   ├── filtered
+│   │   └── {study name}_16s-amplicon-sequencing_{sample id}_{factors}_{read #}-filtered.fastq.gz	# Reads that passed the DADA2 filter.
+│   └── trimmed
+│       └── {study name}_16s-amplicon-sequencing_{sample id}_{factors}_{read #}-filtered.fastq.gz	# Reads that passed cutadapt trimming.
+├── logs
+│   └── {pipeline step}.txt 	# Log files from stdout and stderr from the pipline.
+├── notes
+│   └── filename_changes.tsv 	# Document of file name changes
+├── report
+│   ├── cutadapt
+│   │   ├── cutadapt_GLDS-146_16s-amplicon-sequencing_SAMN06277231_Mouse-1_day-10_gray-0.1
+│   ├── fastqc
+│   │   ├── filtered
+│   │   │   └── {read id}_fastqc.html	# FastQC report
+│   │   ├── raw
+│   │   │   └── {read id}_fastqc.html	# FastQC report
+│   │   └── trimmed
+│   │   │   └── {read id}_fastqc.html	# FastQC report
+│   ├── multiqc_data
+│   │   └── *
+│   ├── multiqc_report.html		# Aggregated report for FastQC and cutadapt.
+│   ├── plots
+│       └── base_error_rates.png 
+├── scripts
+│   ├── assign_tax.R	# script for taxanomic assignment
+│   ├── dada2biom.py	# script for conversion to BIOM
+│   └── dada2.R			# script for main DADA2 
+└── Snakefile			# Snakemake pipeline file
+```
