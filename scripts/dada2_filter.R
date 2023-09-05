@@ -32,17 +32,17 @@ parser$add_argument("-N", "--maxN", nargs='+',default=0, help="(Optional). Defau
 parser$add_argument("-d", "--minQ", nargs='+',default=0, help="(Optional). Default 0. After truncation, reads contain a quality score less than minQ will be discarded.")
 parser$add_argument("-E", "--maxEE", nargs='+', default='Inf',  help="(Optional). Default Inf (no EE filtering). Two are needed for pairedend. vaules After truncation, reads with higher than maxEE 'expected errors' will be discarded. Expected errors are calculated from the nominal definition of the quality score: EE = sum(10^(-Q/10))")
 parser$add_argument("--rm_phix",  nargs='+',default=T, type='logical', help="(Optional). Default TRUE. If TRUE, discard reads that match against the phiX genome, as determined by isPhiX.")
-parser$add_argument("--primer_fwd", default=NULL, help="(Optional). Default NULL. Paired-read filtering only. A character string defining the forward primer. Only allows unambiguous nucleotides. The primer will be compared to the first len(primer.fwd) nucleotides at the start of the read. If there is not an exact match, the read is filtered out. For paired reads, the reverse read is also interrogated, and if the primer is detected on the reverse read, the forward/reverse reads are swapped.")
+#parser$add_argument("--primer_fwd", default=NULL, help="(Optional). Default NULL. Paired-read filtering only. A character string defining the forward primer. Only allows unambiguous nucleotides. The primer will be compared to the first len(primer.fwd) nucleotides at the start of the read. If there is not an exact match, the read is filtered out. For paired reads, the reverse read is also interrogated, and if the primer is detected on the reverse read, the forward/reverse reads are swapped.")
 parser$add_argument("--matchIDs",default=F, help="(Optional). Default FALSE. Paired-read filtering only. Whether to enforce matching between the id-line sequence identifiers of the forward and reverse fastq files. If TRUE, only paired reads that share id fields (see below) are output. If FALSE, no read ID checking is done. Note: matchIDs=FALSE essentially assumes matching order between forward and reverse reads. If that matched order is not present future processing steps may break (in particular mergePairs).")
 parser$add_argument("--id_sep", default='\\s', help="(Optional). Default '\\\\s' (white-space). Paired-read filtering only. The separator between fields in the id-line of the input fastq files. Passed to the strsplit.")
 parser$add_argument("--id_field", default='NULL', help="(Optional). Default NULL (automatic detection). Paired-read filtering only. The field of the id-line containing the sequence identifier. If NULL (the default) and matchIDs is TRUE, the function attempts to automatically detect the sequence identifier field under the assumption of Illumina formatted output.")
 parser$add_argument("--multithread", default=T, help="(Optional). Default is FALSE. If TRUE, input files are filtered in parallel via mclapply. If an integer is provided, it is passed to the mc.cores argument of mclapply. Note that the parallelization here is by forking, and each process is loading another fastq file into memory. If memory is an issue, execute in a clean environment and reduce the chunk size n and/or the number of threads.")
-#parser$add_argument("--n_reads", default= 1e5, help="(Optional). Default 1e5. The number of records (reads) to read in and filter at any one time. This controls the peak memory requirement so that very large fastq files are supported. See FastqStreamer for details.")
+parser$add_argument("--n_reads", default= 1e5, help="(Optional). Default 1e5. The number of records (reads) to read in and filter at any one time. This controls the peak memory requirement so that very large fastq files are supported. See FastqStreamer for details.")
 parser$add_argument("-v", "--verbose", default= TRUE, help="((Optional). Default TRUE. Whether to output status messages.")
 
 args <- parser$parse_args()
 
-args$n_reads=1e5
+
 
 print(args)
 
@@ -102,7 +102,7 @@ if (any(args$rev != F)){
 	filtRs = file.path( paste0(study.name,sample.names, "_R2-filtered.fastq.gz")) # create file names
 	out = filterAndTrim(fnFs, filtFs, fnRs, filtRs,
 						truncQ = as.numeric(args$truncQ), truncLen = as.numeric(args$truncLen) , trimLeft = as.numeric(args$trimLeft), maxLen = as.numeric(args$maxLen), minLen = as.numeric(args$minLen),
-						maxN = as.numeric(args$maxN), minQ = as.numeric(args$minQ), maxEE = as.numeric(args$maxEE) , rm.phix = as.logical(args$rm_phix), primer.fwd = args$primer_fwd,
+						maxN = as.numeric(args$maxN), minQ = as.numeric(args$minQ), maxEE = as.numeric(args$maxEE) , rm.phix = as.logical(args$rm_phix), #primer.fwd = args$primer_fwd,
 						matchIDs = args$matchIDs, id.sep = args$id_sep, id.field = args$id_field,
 						multithread = args$multithread, n = as.numeric(args$n_reads), verbose = args$verbose)
 	#
@@ -119,7 +119,7 @@ if (any(args$rev != F)){
 		filtFs = file.path( paste0(study.name,sample.names, "_R1-filtered.fastq.gz"))
 		out = filterAndTrim(fnFs, filtFs, 
 							truncQ = as.numeric(args$truncQ), truncLen = as.numeric(args$truncLen) , trimLeft = as.numeric(args$trimLeft), maxLen = as.numeric(args$maxLen), minLen = as.numeric(args$minLen),
-							maxN = as.numeric(args$maxN), minQ = as.numeric(args$minQ), maxEE = as.numeric(args$maxEE) , rm.phix = as.logical(args$rm_phix), primer.fwd = args$primer_fwd,
+							maxN = as.numeric(args$maxN), minQ = as.numeric(args$minQ), maxEE = as.numeric(args$maxEE) , rm.phix = as.logical(args$rm_phix),# primer.fwd = args$primer_fwd,
 							matchIDs = args$matchIDs, id.sep = args$id_sep, id.field = args$id_field,
 							multithread = args$multithread, n = as.numeric(args$n_reads), verbose = args$verbose)
 		#

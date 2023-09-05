@@ -75,3 +75,11 @@ Failure to do so may give you results that look good, but are bad.
 │   └── dada2.R			# script for main DADA2 
 └── Snakefile			# Snakemake pipeline file
 ```
+
+TODO:
+- save dada2 plots 
+- batch mode for diffrent sequencing runs 
+- fix biom export
+- save error matrix
+- fix tracking
+- add pileline to ramxl-ng

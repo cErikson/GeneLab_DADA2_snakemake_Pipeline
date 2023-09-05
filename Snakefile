@@ -200,12 +200,13 @@ rule dada2_pe:
         rev=expand('data/filtered/{IDS}_R2-filtered.fastq.gz', IDS=set(file_ids.id))
     output:
         asv='data/{GLDS}_metagenomics_dada2-asv-matrix.tsv'.format(GLDS=DS_NUM),
+        phylo='data/{GLDS}_metagenomics_dada2-asv-phylo.tsv'.format(GLDS=DS_NUM)
     params:
         matrix = '' if config['score_matrix'] == 'nuc44' else '--SCORE_MATRIX '+config['score_matrix']
     threads: config['threads']
     shell:
         '''
-        scripts/dada2.R -f {input.fwd} -r {input.rev} -o {output.asv} {config[samp_fields]} \
+        scripts/dada2.R -f {input.fwd} -r {input.rev} -o {output.asv} -p {output.phylo} {config[samp_fields]} \
         -c {config[chimera_rm]} --LEARN_READS_N {config[learn_reads_n]} --OMEGA_A {config[omega_a]} --USE_QUALS {config[use_quals]}\
         --USE_KMERS {config[use_kmers]} --KDIST_CUTOFF {config[kdist_cutoff]} --BAND_SIZE {config[band_size]} {params.matrix}\
         --GAP_PENALTY {config[gap_penalty]} --HOMOPOLYMER_GAP_PENALTY {config[homopolymer_gap_penalty]} --MIN_FOLD {config[min_fold]}\
@@ -217,12 +218,13 @@ rule dada2_se:
         fwd=expand('data/filtered/{IDS}_R1-filtered.fastq.gz', IDS=set(file_ids.id))
     output:
         asv='data/{GLDS}_metagenomics_dada2-asv-matrix.tsv'.format(GLDS=DS_NUM),
+        phylo='data/{GLDS}_metagenomics_dada2-asv-phylo.tsv'.format(GLDS=DS_NUM)
     params:
         matrix = '' if config['score_matrix'] == 'nuc44' else '--SCORE_MATRIX '+config['score_matrix']
     threads: config['threads']
     shell:
         '''
-        scripts/dada2.R -f {input.fwd} -o {output.asv} {config[samp_fields]} \
+        scripts/dada2.R -f {input.fwd} -o {output.asv} -p {output.phylo} {config[samp_fields]} \
         -c {config[chimera_rm]} --LEARN_READS_N {config[learn_reads_n]} --OMEGA_A {config[omega_a]} --USE_QUALS {config[use_quals]}\
         --USE_KMERS {config[use_kmers]} --KDIST_CUTOFF {config[kdist_cutoff]} --BAND_SIZE {config[band_size]} {params.matrix}\
         --GAP_PENALTY {config[gap_penalty]} --HOMOPOLYMER_GAP_PENALTY {config[homopolymer_gap_penalty]} --MIN_FOLD {config[min_fold]}\
@@ -231,13 +233,14 @@ rule dada2_se:
 
 rule assign_tax:
     input:
-        asv_table='data/{GLDS}_metagenomics_dada2-asv-matrix.tsv'
+        phylo='data/{GLDS}_metagenomics_dada2-asv-phylo.tsv'
     output:
-        tax_table='data/{GLDS}_metagenomics_dada2-taxonomy-matrix.tsv'
+        tax_table='data/{GLDS}_metagenomics_dada2-taxonomy-matrix.tsv',
+        'data/{GLDS}_metagenomics_dada2-taxonomy-phylo.tsv'.format(GLDS=DS_NUM)
     threads: config['threads']
     shell:
         '''
-        scripts/dada2_assign_taxa.R {input} {output}\
+        scripts/dada2_assign_taxa.R {input.phylo} {output}\
         -t {config[taxa_train]} -s {config[species_train]} --minBoot {config[minboot]} --tryRC {config[tryrc]}\
         --taxLevels {config[taxlevels]} --allowMultiple {config[allowmultiple]} --multithread {threads}
          '''

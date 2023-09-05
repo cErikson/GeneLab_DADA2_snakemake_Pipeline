@@ -31,10 +31,10 @@
 glds_num: GLDS-126 # Study identifier prefix
 
 ##### Configuration for CutAdapt #####
-min_len_dis: 50 # Default: 0. Discard reads shorter than LENGTH.
+min_len_dis: 100 # Default: 0. Discard reads shorter than LENGTH.
 error_rate: 0.1 #  Default: 0.1. Maximum allowed error rate (no. of errors divided by the length of the matching region).
 pair_filter: any # Default: any. Which of the reads in a paired-end read have to match the filtering criterion in order for the pair to be filtered.
-discard_untrimmed: True # Default: True. With EMP primers: likely False. Discards reads in which the primers were not trimmed. If your sequencing primers prime off your insert primers, thus the insert primers are not secquenced, then False. Otherwise True will help clean up messy reads.
+discard_untrimmed: False # Default: True. With EMP primers: likely False. Discards reads in which the primers were not trimmed. If your sequencing primers prime off your insert primers, thus the insert primers are not secquenced, then False. Otherwise True will help clean up messy reads.
 no_indels: True # Default: True. Allow only mismatches in alignments. 
 max_n: 0  # Default: 0. DADA2 can not handle N's. Discard reads with more than COUNT 'N' bases. If COUNT is a number between 0 and 1, it is interpreted as a fraction of the read length
 qual_trim_5: 25
@@ -42,7 +42,7 @@ qual_trim_3: 25
 trim_end_n: True 
 
 ##### Configuration for DADA2 #####
-threads: 8
+threads: 12
 
 # The names for the samples can be spcified in a nomber of ways. By a feild in the filename, by a regex of the filename, or full filenames.   
 # By Feild: `-s` specifies the feilds, and `-S` specifies the delimiter. The options `-s 2 3 -S _` on filename `GLDS-126_samp4_space_date12345.R1.fastq.gz` would yeild `samp4_space`. 1-based
@@ -106,7 +106,7 @@ maxn: 0 0
 # to read in and filter at any one time. This controls
 # the peak memory requirement so that very large fastq
 # files are supported. See FastqStreamer for details
-n_reads: 10000
+n_reads: 100000
 ### End Optional ###
 
 ###### Core ######
@@ -208,10 +208,10 @@ max_consist: 10
 
 ###### Taxa ########
 #The path to the taxa trainning file
-taxa_train: /home/christian/lab/ref_datasets/silva/silva_v132/silva_nr_v132_train_set.fa.gz
+taxa_train: ~/ref/silva/silva_v138/silva_nr99_v138.1_train_set.fa.gz
 
 #The path to species training file
-species_train: /home/christian/lab/ref_datasets/silva/silva_v132/silva_species_assignment_v132.fa.gz
+species_train: ~/ref/silva/silva_v138/silva_species_assignment_v138.1.fa.gz
 
 ### Optional ###
 # (Optional). Default 50. The minimum bootstrap
@@ -240,6 +240,22 @@ allowmultiple: FALSE
 ### End Optional ###
 
 ##### DADA2BIOM #####
-meta_samp_file: s_PRJEB14961.txt # The stripped name of the study file. s_SRP098151_2B.txt --> SRP098151_2B
+meta_samp_file: Metadata.csv  # The name of the study file. 
 meta_samp_feild: 'Sample\ Name' # The label of the the sample name field. Probably `Sample Name`. quote with ``
 meta_regex: .*sequencing_\(.*?\)_.*
+
+##### CONFIG FOR CLUSTER #####
+fastqc_time: 240
+fastqc_part: med2
+cutadapt_time: 240
+cutadapt_part: med2
+filter_core: 4
+filter_time: 480
+filter_part: med2
+filter_mem: 8000
+core_core: 32
+core_time: 1220
+core_part: med2
+core_mem: 128000
+biom_time: 60
+biom_part: med2
