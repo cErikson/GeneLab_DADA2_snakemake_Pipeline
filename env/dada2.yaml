@@ -1,0 +1,14 @@
+channels:
+  - conda-forge
+  - bioconda
+  - r
+dependencies:
+  - python
+  - r-base
+  - fastqc
+  - cutadapt
+  - multiqc
+  - biom-format
+  - r-tidyverse
+  - bioconductor-dada2
+  - r-argparse
