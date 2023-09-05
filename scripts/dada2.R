@@ -14,6 +14,13 @@ if (any(!(packages %in% installed.packages()[,"Package"]))) stop(sprintf('These 
 library(dada2)
 library(argparse)
 
+# Error handeling
+exception_catcher <- function(e){
+  write('An error has been caught in the Core workflow: ', stderr())
+  traceback()
+  write(sprintf('Saving R Dataspace to: %s\n', getwd()), stderr())
+  save.image(file = 'dada2_failed_data.RData')
+}
 
 ##### PARSER #####
 # Initialize argument parser

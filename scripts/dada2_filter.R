@@ -17,7 +17,9 @@ parser <- ArgumentParser(description='A Command line wrapper for DADA2.', epilog
 
 parser$add_argument("-p","--prefix",type="character",default='' ,help="Filtered file name prefix.")
 parser$add_argument("-f","--fwd", nargs='+', type="character",help="Name/path to fastq or fastq.gz files for single end sequencing or forward reads if paired end sequencing")
-parser$add_argument("-r","--rev", nargs='+', type="character",default=FALSE,help="Name/path to fastq or fastq.gz files for reverse reads if paired end sequencing")
+parser$add_argument("--fwd_out", nargs='+', type="character", default=FALSE, help="Name/path to output fwd reads")
+parser$add_argument("-r","--rev", nargs='+', type="character",default=FALSE, help="Name/path to fastq or fastq.gz files for reverse reads if paired end sequencing")
+parser$add_argument("--rev_out", nargs='+', type="character",default=FALSE, help="Name/path to output rev reads")
 parser$add_argument("-s","--samp_fields", nargs='+', type="integer", default=FALSE, help="The fields in the file name that should be used for sample names.")
 parser$add_argument("-S","--fields_delim", type="character", default='_', help="The field delimiter used in the file name")
 parser$add_argument("-R","--samp_regex", action='store',type="character",default=FALSE,help="Regex used to create samplenames. Double escapes \\w")
@@ -32,7 +34,6 @@ parser$add_argument("-N", "--maxN", nargs='+',default=0, help="(Optional). Defau
 parser$add_argument("-d", "--minQ", nargs='+',default=0, help="(Optional). Default 0. After truncation, reads contain a quality score less than minQ will be discarded.")
 parser$add_argument("-E", "--maxEE", nargs='+', default='Inf',  help="(Optional). Default Inf (no EE filtering). Two are needed for pairedend. vaules After truncation, reads with higher than maxEE 'expected errors' will be discarded. Expected errors are calculated from the nominal definition of the quality score: EE = sum(10^(-Q/10))")
 parser$add_argument("--rm_phix",  nargs='+',default=T, type='logical', help="(Optional). Default TRUE. If TRUE, discard reads that match against the phiX genome, as determined by isPhiX.")
-#parser$add_argument("--primer_fwd", default=NULL, help="(Optional). Default NULL. Paired-read filtering only. A character string defining the forward primer. Only allows unambiguous nucleotides. The primer will be compared to the first len(primer.fwd) nucleotides at the start of the read. If there is not an exact match, the read is filtered out. For paired reads, the reverse read is also interrogated, and if the primer is detected on the reverse read, the forward/reverse reads are swapped.")
 parser$add_argument("--matchIDs",default=F, help="(Optional). Default FALSE. Paired-read filtering only. Whether to enforce matching between the id-line sequence identifiers of the forward and reverse fastq files. If TRUE, only paired reads that share id fields (see below) are output. If FALSE, no read ID checking is done. Note: matchIDs=FALSE essentially assumes matching order between forward and reverse reads. If that matched order is not present future processing steps may break (in particular mergePairs).")
 parser$add_argument("--id_sep", default='\\s', help="(Optional). Default '\\\\s' (white-space). Paired-read filtering only. The separator between fields in the id-line of the input fastq files. Passed to the strsplit.")
 parser$add_argument("--id_field", default='NULL', help="(Optional). Default NULL (automatic detection). Paired-read filtering only. The field of the id-line containing the sequence identifier. If NULL (the default) and matchIDs is TRUE, the function attempts to automatically detect the sequence identifier field under the assumption of Illumina formatted output.")
@@ -42,9 +43,7 @@ parser$add_argument("-v", "--verbose", default= TRUE, help="((Optional). Default
 
 args <- parser$parse_args()
 
-
-
-print(args)
+#print(args)
 
 ##### FILES #####
 fnFs = sort(args$fwd) # sort for pairing files 
@@ -98,11 +97,17 @@ if (!all(!duplicated(sample.names))){
 # Place filtered files in filtered/ subdirectory
 if (any(args$rev != F)){
 	write('Filtering reads',stderr())
-	filtFs = file.path( paste0(study.name,sample.names, "_R1-filtered.fastq.gz"))
-	filtRs = file.path( paste0(study.name,sample.names, "_R2-filtered.fastq.gz")) # create file names
+	if (any(args$fwd_out == F) & any(args$rev_out == F)){
+		filtFs = file.path( paste0(study.name,sample.names, "_R1-filtered.fastq.gz"))
+		filtRs = file.path( paste0(study.name,sample.names, "_R2-filtered.fastq.gz")) # create file names
+	}else{
+		filtFs = args$fwd_out
+		filtRs = args$rev_out
+	}
+
 	out = filterAndTrim(fnFs, filtFs, fnRs, filtRs,
 						truncQ = as.numeric(args$truncQ), truncLen = as.numeric(args$truncLen) , trimLeft = as.numeric(args$trimLeft), maxLen = as.numeric(args$maxLen), minLen = as.numeric(args$minLen),
-						maxN = as.numeric(args$maxN), minQ = as.numeric(args$minQ), maxEE = as.numeric(args$maxEE) , rm.phix = as.logical(args$rm_phix), #primer.fwd = args$primer_fwd,
+						maxN = as.numeric(args$maxN), minQ = as.numeric(args$minQ), maxEE = as.numeric(args$maxEE) , rm.phix = as.logical(args$rm_phix),
 						matchIDs = args$matchIDs, id.sep = args$id_sep, id.field = args$id_field,
 						multithread = args$multithread, n = as.numeric(args$n_reads), verbose = args$verbose)
 	#
@@ -116,10 +121,14 @@ if (any(args$rev != F)){
 	}
 } else {
 		write('Filtering reads',stderr())
-		filtFs = file.path( paste0(study.name,sample.names, "_R1-filtered.fastq.gz"))
+		if (any(args$fwd_out == F)){
+			filtFs = file.path( paste0(study.name,sample.names, "_R1-filtered.fastq.gz"))
+		}else{
+			filtFs = args$fwd_out
+		}
 		out = filterAndTrim(fnFs, filtFs, 
 							truncQ = as.numeric(args$truncQ), truncLen = as.numeric(args$truncLen) , trimLeft = as.numeric(args$trimLeft), maxLen = as.numeric(args$maxLen), minLen = as.numeric(args$minLen),
-							maxN = as.numeric(args$maxN), minQ = as.numeric(args$minQ), maxEE = as.numeric(args$maxEE) , rm.phix = as.logical(args$rm_phix),# primer.fwd = args$primer_fwd,
+							maxN = as.numeric(args$maxN), minQ = as.numeric(args$minQ), maxEE = as.numeric(args$maxEE) , rm.phix = as.logical(args$rm_phix),
 							matchIDs = args$matchIDs, id.sep = args$id_sep, id.field = args$id_field,
 							multithread = args$multithread, n = as.numeric(args$n_reads), verbose = args$verbose)
 		#
