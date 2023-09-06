@@ -85,7 +85,6 @@ taxaid <- t(sapply(ids, function(x) {
 }))
 colnames(taxaid) <- ranks
 rownames(taxaid) = taxa_names(phylo)
-if (args$species_train!=F) taxaid = addSpecies(taxaid, args$species_train, allowMultiple = args$allowMultiple, verbose = args$verbose) # Add species 
 }
 
 # Save

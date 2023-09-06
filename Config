@@ -210,12 +210,13 @@ max_consist: 10
 #The path to the taxa trainning file
 #taxa_train: ~/ref/silva/silva_v138/silva_nr99_v138.1_train_set.fa.gz  #BAYES
 taxa_train: ~/ref/silva/silva_v138/SILVA_SSU_r138_2019.RData #DECHIPER
+
 #The path to species training file
 species_train: ~/ref/silva/silva_v138/silva_species_assignment_v138.1.fa.gz
 
 
-#There are two methods, idtaxa and bayes. The `idtaxa` algo from DECIPHER, or `bayes` from dada2
-train_method: idtaxa
+#There are two methods, idtaxa and bayes. The `idtaxa` algo from DECIPHER, or `bayes` from dada2. change taxalevels
+train_method: idtaxa       # change taxalevels, taxa_train
 
 ### Optional ###
 # (Optional). Default 50. The minimum bootstrap
@@ -232,7 +233,8 @@ tryrc: FALSE
 # Family Genus Species>. The taxonomic levels being
 # assigned. Truncates if deeper levels not present in
 # training fasta.      
-taxlevels: Kingdom Phylum Class Order Family Genus Species
+#taxlevels: Kingdom Phylum Class Order Family Genus Species	# bayes
+taxlevels: domain phylum class order family genus species  # Dechiper
                       
 # (Optional). Default FALSE. Defines the behavior when
 # multiple exact matches against different species are
