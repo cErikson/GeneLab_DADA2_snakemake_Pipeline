@@ -15,6 +15,7 @@ parser <- ArgumentParser()
   parser$add_argument('-a', "--asv_table", default = F, type="character", help="Name of (or path to) the ASV table output from DADA2. In R matrix format. aka first feild of col names is missing")
 	parser$add_argument('-o', "--output_table", default= F ,type="character",help="Name of (or path to) the output taxa table.")
 	parser$add_argument('-O', "--output_phylo", default= F ,type="character",help="Name of (or path to) the output phyloseq.")
+	parser$add_argument('-f', "--output_fasta", default= F ,type="character",help="Name of (or path to) the output fasta of ASVs.")
 	parser$add_argument('-m', "--method", default="idtaxa",type="character", help="There are two methods, idtaxa and bayes. The IDTAXA algo from DECIPHER, or naive bayes from dada2")
 	parser$add_argument('--multithread', default= T, type="logical", help='(Optional). Default is TRUE. If TRUE, multithreading is enabled and the number of available threads is automatically determined. If an integer is provided, the number of threads to use is set by passing the argument on to setThreadOptions.')
 	parser$add_argument('--verbose', default= T, type="logical", help='(Optional). Default FALSE. If TRUE, print status to standard output.')
@@ -44,7 +45,7 @@ library(dada2)
 print(args)
 # Read in seqtab file
 if (args$asv_table != F){
-  phylo=phyloseq(otu_table(read.table(args$asv_table), taxa_are_rows = F))
+  phylo=phyloseq(otu_table(read.table(args$asv_table), taxa_are_rows = T))
   dna = Biostrings::DNAStringSet(taxa_names(phylo))
   names(dna) = taxa_names(phylo)
   phylo = merge_phyloseq(phylo, dna)
@@ -83,7 +84,16 @@ colnames(taxid) <- ranks
 if (args.output_table != F){
   write.table(taxaid, args$output_table, sep="\t")
 }
+
+phylo=merge_phyloseq(phylo, tax_table(taxid))
+dna <- Biostrings::DNAStringSet(taxa_names(phylo))
+names(dna) <- taxa_names(phylo)
+phylo <- merge_phyloseq(phylo, dna)
+taxa_names(phylo) <- paste0("ASV", seq(ntaxa(phylo)))
+
 if (args.output_table != F){
-  phylo=merge_phyloseq(phylo, tax_table(taxid))
   saveRDS(phylo, args.output_phylo)
+}
+if (args.output_fasta != F){
+  Biostrings::writeXStringSet(phylo@refseq, args.output_fasta)
 }

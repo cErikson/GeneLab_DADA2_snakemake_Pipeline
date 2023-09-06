@@ -83,7 +83,7 @@ study.name = args$prefix
 if (any(args$samp_fields != F) && any(args$samp_list == F) && any(args$samp_regex == F)){ # EXTRACT_NAMES_FROM_READS
 	# Extract sample names, assuming filenames have format: {ds}_{resource]_{sample}_{factor}_R1-trimmed.fastq
 	sample.names = lapply(strsplit(basename(fnFs), args$fields_delim), function(x){paste(x[as.integer(args$samp_fields)],collapse = args$fields_delim)}) # grab the delimited feilds
-} else if (any(args$samp_fields == F) && any(args$samp_list == F) && any(args$samp_regex == F)){ # KEEP_FULL_NAMES
+} else if (any( == F) && any(args$samp_list == F) && any(args$samp_regex == F)){ # KEEP_FULL_NAMES
 	sample.names = basename(fnFs)
 } else if (any(args$samp_fields == F) && any(args$samp_list == F) && any(args$samp_regex != F)){ # EXTRACT_NAMES_WITH_REGEX
 	library(stringr)
@@ -116,13 +116,19 @@ if (!is.null(args$SCORE_MATRIX)){
 	setDadaOpt(SCORE_MATRIX=read.table(args$SCORE_MATRIX))
 }
 
+# Track Reads
+getN = function(x) sum(getUniques(x))
+track = data.frame(samp=unlist(sample.names))
+
 ##### DADA #####
 
 # Learn error rates
 write('Learning error rates R1', stderr())
 errF = learnErrors(fnFs, nreads = as.numeric(args$LEARN_READS_N), multithread=TRUE, randomize=TRUE)
-#plotErrors(errF, nominalQ=TRUE)
-
+saveRDS(sprintf("plots/fwd_err_data_for_batch_with_file_%s.Rds", fnFs[1]))
+png(sprintf("plots/fwd_err_for_batch_with_file_%s.png", fnFs[1])) 
+plotErrors(errF, nominalQ=TRUE)
+dev.off() 
 # Dereplication
 write('Dereplicating R1', stderr())
 derepFs = derepFastq(fnFs, verbose=TRUE)
@@ -131,12 +137,16 @@ names(derepFs) = sample.names # Name the derep-class objects by the sample names
 # sample Infrence
 write('DADA2 Core R1',stderr())
 dadaFs = dada(derepFs, err=errF, multithread=TRUE)
+track['denoisedF']= sapply(dadaFs, getN)
 
 if (any(args$rev != F)){
 	# Learn error rates
 	write('Learning error rates R2', stderr())
 	errR = learnErrors(fnRs, nreads = as.numeric(args$LEARN_READS_N), multithread=TRUE, randomize=TRUE)
-	#plotErrors(errF, nominalQ=TRUE)
+	saveRDS(sprintf("plots/rev_err_data_for_batch_with_file_%s.Rds", fnRs[1]))
+	png(sprintf("plots/rev_err_for_batch_with_file_%s.png", fnRs[1])) 
+	plotErrors(errF, nominalQ=TRUE)
+	dev.off() 
 	
 	# Dereplication
 	write('Dereplicating', stderr())
@@ -146,10 +156,12 @@ if (any(args$rev != F)){
 	# sample Infrence
 	write('DADA2 Core',stderr())
 	dadaRs = dada(derepRs, err=errR, multithread=TRUE)
+	track['denoisedR'] = sapply(dadaRs, getN)
 	
 	# merge pair reads
 	write('Merge pair end reads', stderr())
 	dada_reads = mergePairs(dadaFs, derepFs, dadaRs, derepRs, verbose=TRUE)
+	track['merged'] = sapply(dada_reads, getN)
 } else {
 	dada_reads = dadaFs
 }
@@ -163,20 +175,12 @@ write(table(nchar(getSequences(seqtab))), stdout())
 if (args$chimrm != 'FALSE'){
 	# Remove Chimeras
 	write('Remove Chimeras', stderr())
-	seqtab.chimrm = removeBimeraDenovo(seqtab, method="consensus", multithread=TRUE, verbose=TRUE)
-	write.table(seqtab.chimrm, file=args$asv_out, sep="\t")
-} else {
-	write.table(seqtab, file=args$asv_out, sep="\t")
-}
+	seqtab = removeBimeraDenovo(seqtab, method=args$chimrm, multithread=TRUE, verbose=TRUE)
+	track['nonchim'] = rowSums(seqtab)
+	write(sprintf('Percent Chimeras Removed %s',sum(seqtab.nochim)/sum(seqtab)), stderr())
+} 
+# Tables
+write.table(t(seqtab), file=args$asv_out, sep="\t")
 
-# # Track Reads
-# getN = function(x) sum(getUniques(x))
-# track = data.frame(samp=unlist(sample.names), denoisedF = sapply(dadaFs, getN))
-# if (args$rev != FALSE){
-# 	track['denoisedR'] = sapply(dadaRs, getN)
-# 	track['merged'] = sapply(mergers, getN)
-# }
-# if (args$chimrm != F) track['nonchim'] = rowSums(seqtab.chimrm)
-# # If processing a single sample, remove the sapply calls: e.g. replace sapply(dadaFs, getN) with getN(dadaFs)
-# write('Reads Surviving each step', stderr())
-# write.table(track, stderr())
+write('DONE/nReads Surviving each step', stderr())
+write.table(track, stderr())

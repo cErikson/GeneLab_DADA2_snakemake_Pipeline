@@ -242,7 +242,7 @@ allowmultiple: FALSE
 ##### DADA2BIOM #####
 meta_samp_file: Metadata.csv  # The name of the study file. 
 meta_samp_feild: 'Sample\ Name' # The label of the the sample name field. Probably `Sample Name`. quote with ``
-meta_regex: .*sequencing_\(.*?\)_.*
+meta_regex: .*sequencing_\(.*?\)_.* # Regex used to extract sample names, False otherwise
 
 ##### CONFIG FOR CLUSTER #####
 fastqc_time: 240
@@ -257,5 +257,15 @@ core_core: 32
 core_time: 1220
 core_part: med2
 core_mem: 128000
+aln_core: 12
+aln_time: 1220
+aln_part: med2
+aln_mem: 32000
+tree_core: 32
+tree_time: 1220
+tree_part: med2
+tree_mem: 128000
 biom_time: 60
 biom_part: med2
+
+

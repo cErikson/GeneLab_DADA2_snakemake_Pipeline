@@ -1,0 +1,11 @@
+channels:
+  - conda-forge
+  - bioconda
+  - r
+dependencies:
+  - mafft
+  - fasttree
+  - r-base
+  - r-tidyverse
+  - bioconductor-dada2
+  - r-argparse

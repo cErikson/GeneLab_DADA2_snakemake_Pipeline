@@ -14,9 +14,8 @@ Scripts in cli folder: https://github.com/cErikson/DADA2_cli_and_galaxy_wrapper
 ```
 
 # Asumptions
-0. Sequencing files are found under `data/sequencing`
-1. Reads have been demuliplexed. Any barcode used for pcr/optical duplicates has been used.
-2. Gzipped fastq file follow the `<Accession #>_<resource category>_<Sample Name>_(<Factor Level>_)+.<read>.fastq.gz` format. Where (...)+ indicates one or more factor levels, delimited by under_scores. Read feild is `R1` or `R2`
+0. Sequencing files are found under `data/seq/`
+1. Fastq filesnames are in the following format the `(<ID & Factor Levels>_)+_<Read>_<Batch>.fastq.g` format. Where (...)+ indicates one or more IDs or factor levels, delimited by under_scores. Read feild is `R1` or `R2`. Batch field indicates seperate sequencing runs.
 
 # Instructions 
 0. Run `snakemake setup`
@@ -77,9 +76,5 @@ Failure to do so may give you results that look good, but are bad.
 ```
 
 TODO:
-- save dada2 plots 
-- batch mode for diffrent sequencing runs 
 - fix biom export
-- save error matrix
-- fix tracking
-- add pileline to ramxl-ng
+- Merge dada batches after core, TREES WONT WORK WITH BATCHES
