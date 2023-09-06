@@ -208,11 +208,11 @@ max_consist: 10
 
 ###### Taxa ########
 #The path to the taxa trainning file
-taxa_train: ~/ref/silva/silva_v138/silva_nr99_v138.1_train_set.fa.gz
-
+#taxa_train: ~/ref/silva/silva_v138/silva_nr99_v138.1_train_set.fa.gz  #BAYES
+taxa_train: ~/ref/silva/silva_v138/SILVA_SSU_r138_2019.RData #DECHIPER
 #The path to species training file
-#species_train: ~/ref/silva/silva_v138/silva_species_assignment_v138.1.fa.gz #BAYES
-species_train: ~/ref/silva/silva_v138/SILVA_SSU_r138_2019.RData #DECHIPER
+species_train: ~/ref/silva/silva_v138/silva_species_assignment_v138.1.fa.gz
+
 
 #There are two methods, idtaxa and bayes. The `idtaxa` algo from DECIPHER, or `bayes` from dada2
 train_method: idtaxa

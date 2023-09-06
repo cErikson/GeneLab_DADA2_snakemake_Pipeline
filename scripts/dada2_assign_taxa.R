@@ -57,10 +57,6 @@ print(args)
 # Read in seqtab file
 if (args$asv_table != F){
   phylo=phyloseq(otu_table(read.table(args$asv_table), taxa_are_rows = T))
-  dna = Biostrings::DNAStringSet(taxa_names(phylo))
-  names(dna) = taxa_names(phylo)
-  phylo = merge_phyloseq(phylo, dna)
-  taxa_names(phylo) = paste0("ASV", seq(ntaxa(phylo)))
 }
 if (args$phylo != F){
   phylo=readRDS(args$phylo)
@@ -68,7 +64,7 @@ if (args$phylo != F){
 
 if (args$method == 'bayes'){
   # assignTaxonomy
-  taxaid = assignTaxonomy(refseq(phylo), args$taxa_train, minBoot = args$minBoot, tryRC = args$tryRC, outputBootstraps = args$outputBootstraps,
+  taxaid = assignTaxonomy(taxa_names(phylo), args$taxa_train, minBoot = args$minBoot, tryRC = args$tryRC, outputBootstraps = args$outputBootstraps,
   					  taxLevels = args$taxLevels, multithread=args$multithread, verbose = args$verbose) # main training set
   if (args$species_train!=F) taxaid = addSpecies(taxaid, args$species_train, allowMultiple = args$allowMultiple, verbose = args$verbose) # Add species 
 }
@@ -76,9 +72,9 @@ if (args$method == 'bayes'){
 if (args$method == 'idtaxa'){
 library("DECIPHER"); packageVersion("DECIPHER")
 
-dna=refseq(phylo)
+dna=Biostrings::DNAStringSet(taxa_names(phylo))
 load(args$taxa_train) # CHANGE TO THE PATH OF YOUR TRAINING SET
-ids = IdTaxa(dna, trainingSet, strand="top", processors=NULL, verbose=T) # use all processors
+ids = IdTaxa(dna, trainingSet, strand="top", processors=args$multithread, verbose=T) # use all processors
 ranks = args$taxLevels # ranks of interest
 # Convert the output object of class "Taxa" to a matrix analogous to the output from assignTaxonomy
 taxaid <- t(sapply(ids, function(x) {
@@ -88,17 +84,20 @@ taxaid <- t(sapply(ids, function(x) {
   taxa
 }))
 colnames(taxaid) <- ranks
+rownames(taxaid) = taxa_names(phylo)
+if (args$species_train!=F) taxaid = addSpecies(taxaid, args$species_train, allowMultiple = args$allowMultiple, verbose = args$verbose) # Add species 
 }
 
-write(phylo@otu_table[1], stderr())
-write(phylo@refseq[1], stderr())
-write(taxaid[1], stderr())
 # Save
 if (args$output_table != F){
   write.table(taxaid, args$output_table, sep="\t")
 }
 
 phylo=merge_phyloseq(phylo, tax_table(taxaid))
+dna = Biostrings::DNAStringSet(taxa_names(phylo))
+names(dna) = taxa_names(phylo)
+phylo = merge_phyloseq(phylo, dna)
+taxa_names(phylo) = paste0("ASV", seq(ntaxa(phylo)))
 
 if (args$output_phylo != F){
   saveRDS(phylo, args$output_phylo)

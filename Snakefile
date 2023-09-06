@@ -308,7 +308,7 @@ rule align:
         "env/phy.yaml"
     shell:
         '''
-        mafft --thread {threads} --auto < {input.fasta} > {output.align}
+        mafft --thread {threads} --auto {input.fasta} > {output.align}
         '''
 
 rule tree:
@@ -333,13 +333,15 @@ rule DADA2BIOM:
         phylo='data/taxa/{GLDS}_metagenomics_dada2-taxonomy-phylo.Rds',
         tree='data/{GLDS}_metagenomics_fastree-tree-newick.tree'
     output:
-        biom='data/{GLDS}_metagenomics_dada2-biom.json',
+        #biom='data/{GLDS}_metagenomics_dada2-biom.json',
         phylo='data/{GLDS}_metagenomics_dada2-complete-phylo.Rds'
     conda:
         "env/dada2.yaml"
     resources: cores = 1, runtime = config['biom_time'], part = config['biom_part'],
+    params:
+        meta = '-s {config["meta_samp_file"]} ' if config['meta_samp_file'] is not False else ""
     shell:
         '''
-        scripts/dada2biom_phylo.R -i {input.phylo} -t {input.tree} -b {output.biom} -p {output.phylo} -s data/metadata/{config[meta_samp_file]} -n {DS_NUM}
+        scripts/dada2biom_phylo.R -i {input.phylo} -t {input.tree} -p {output.phylo} -n {DS_NUM} {params.meta}
         '''
 
