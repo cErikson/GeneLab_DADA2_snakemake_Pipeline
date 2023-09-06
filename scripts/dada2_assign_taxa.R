@@ -9,6 +9,19 @@
 packages = c("dada2", "argparse", 'DECIPHER', 'phyloseq')
 if (any(!(packages %in% installed.packages()[,"Package"]))) stop(sprintf('These packages are required: %s', packages[!(packages %in% installed.packages()[,"Package"])]))
 library(argparse)
+library(phyloseq)
+library(dada2)
+
+# Error handeling
+exception_catcher <- function(e){
+  write('An error has been caught in the Core workflow: ', stderr())
+  traceback()
+  write(sprintf('Saving R Dataspace to: %s\n', getwd()), stderr())
+  save.image(file = 'dada2_failed_data.RData')
+}
+tryCatch(
+  stop("Error Caught"), 
+  error = function(e) {
 
 parser <- ArgumentParser()
   parser$add_argument('-p', "--phylo", default = F, type="character", help="Name of (or path to) the phyloseq output from DADA2")
@@ -17,7 +30,7 @@ parser <- ArgumentParser()
 	parser$add_argument('-O', "--output_phylo", default= F ,type="character",help="Name of (or path to) the output phyloseq.")
 	parser$add_argument('-f', "--output_fasta", default= F ,type="character",help="Name of (or path to) the output fasta of ASVs.")
 	parser$add_argument('-m', "--method", default="idtaxa",type="character", help="There are two methods, idtaxa and bayes. The IDTAXA algo from DECIPHER, or naive bayes from dada2")
-	parser$add_argument('--multithread', default= T, type="logical", help='(Optional). Default is TRUE. If TRUE, multithreading is enabled and the number of available threads is automatically determined. If an integer is provided, the number of threads to use is set by passing the argument on to setThreadOptions.')
+	parser$add_argument('--multithread', default= T, type="integer", help='(Optional). Default is TRUE. If TRUE, multithreading is enabled and the number of available threads is automatically determined. If an integer is provided, the number of threads to use is set by passing the argument on to setThreadOptions.')
 	parser$add_argument('--verbose', default= T, type="logical", help='(Optional). Default FALSE. If TRUE, print status to standard output.')
 	# Bayes
 	parser$add_argument("-t", "--taxa_train", nargs='+', type="character", help="The path to one or more taxa trainning file(s)")
@@ -32,7 +45,7 @@ parser <- ArgumentParser()
 
 args = parser$parse_args()
 if (args$asv_table == F && args$phylo == F) stop("Need either a ASV_table or phyloseq object for input")
-(args$output_table == F && args$output_phylo == F) stop("Need either a ASV_table or phyloseq object for output")
+if (args$output_table == F && args$output_phylo == F) stop("Need either a ASV_table or phyloseq object for output")
 if (args$asv_table != F && args$phylo != F) stop("Need only one of either of the ASV_table or phyloseq object for input")
 if (args$asv_table != F && any(!file.exists(args$asv_table))) stop(" The ASV_table does not exist")
 if (args$phylo != F && any(!file.exists(args$phylo))) stop(" The phyloseq file does not exist")
@@ -40,8 +53,6 @@ if (!(args$method == 'idtaxa' || args$method == 'bayes')) stop("Invalid method")
 if (args$method == 'bayes' && args$species_train != F && any(!file.exists(args$species_train))) stop("The species_trainning does not exist")
 if (any(!file.exists(args$taxa_train))) stop("The taxa_trainning does not exist")
 
-
-library(dada2)
 print(args)
 # Read in seqtab file
 if (args$asv_table != F){
@@ -70,30 +81,29 @@ load(args$taxa_train) # CHANGE TO THE PATH OF YOUR TRAINING SET
 ids = IdTaxa(dna, trainingSet, strand="top", processors=NULL, verbose=T) # use all processors
 ranks = args$taxLevels # ranks of interest
 # Convert the output object of class "Taxa" to a matrix analogous to the output from assignTaxonomy
-taxid <- t(sapply(ids, function(x) {
+taxaid <- t(sapply(ids, function(x) {
   m <- match(ranks, x$rank)
   taxa <- x$taxon[m]
   taxa[startsWith(taxa, "unclassified_")] <- NA
   taxa
 }))
-colnames(taxid) <- ranks
+colnames(taxaid) <- ranks
 }
 
-
+write(phylo@otu_table[1], stderr())
+write(phylo@refseq[1], stderr())
+write(taxaid[1], stderr())
 # Save
-if (args.output_table != F){
+if (args$output_table != F){
   write.table(taxaid, args$output_table, sep="\t")
 }
 
-phylo=merge_phyloseq(phylo, tax_table(taxid))
-dna <- Biostrings::DNAStringSet(taxa_names(phylo))
-names(dna) <- taxa_names(phylo)
-phylo <- merge_phyloseq(phylo, dna)
-taxa_names(phylo) <- paste0("ASV", seq(ntaxa(phylo)))
+phylo=merge_phyloseq(phylo, tax_table(taxaid))
 
-if (args.output_table != F){
-  saveRDS(phylo, args.output_phylo)
+if (args$output_phylo != F){
+  saveRDS(phylo, args$output_phylo)
 }
-if (args.output_fasta != F){
-  Biostrings::writeXStringSet(phylo@refseq, args.output_fasta)
+if (args$output_fasta != F){
+  Biostrings::writeXStringSet(phylo@refseq, args$output_fasta)
 }
+})

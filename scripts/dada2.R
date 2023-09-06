@@ -22,6 +22,10 @@ exception_catcher <- function(e){
   save.image(file = 'dada2_failed_data.RData')
 }
 
+tryCatch(
+  stop("Error Caught"), 
+  error = function(e) {
+    
 ##### PARSER #####
 # Initialize argument parser
 parser <- ArgumentParser(description='A Command line wrapper for DADA2.')
@@ -35,6 +39,8 @@ parser$add_argument("-s","--samp_fields", nargs='+', type="integer", default=FAL
 parser$add_argument("-S","--fields_delim", type="character", default='_', help="The field delimiter used in the file name")
 parser$add_argument("-R","--samp_regex", action='store',type="character",default=FALSE,help="Regex used to create samplenames. Double escapes \\w")
 parser$add_argument("-l","--samp_list", nargs='+', action='store',type="character", default=FALSE, help="List of sample names that are in same order as the reads, can be used in combination with -R or -s")
+parser$add_argument("-b","--batch",type="character", default=FALSE, help="Batch ID")
+##
 ##
 parser$add_argument("--LEARN_READS_N", default=1e06, help="Default 1e6. The minimum number of reads to use for error rate learning. Samples are read into memory until at least this number of reads has been reached, or all provided samples have been read in.")
 parser$add_argument("--OMEGA_A", default=1e-40, help="This parameter sets the threshold for when DADA2 calls unique sequences significantly overabundant, and therefore creates a new cluster with that sequence as the center. The default value is 1e-40, which is a conservative setting to avoid making false positive inferences, but which comes at the cost of reducing the ability to identify some rare variants.")
@@ -69,7 +75,7 @@ if (all(args$rev != F)){
 	fnRs = sort(args$rev) # sort it
 	if(!all(file.exists(fnRs))) stop(sprintf("The following file does not exist: %s\n",fnRs[!file.exists(fnRs)])) # validate
 	if(any(duplicated(fnRs))) stop(sprintf("The following files are duplicated: %s\n",fnFs[!duplicated(fnRs)])) 
-	if(any(fnFs %in% fnRs || fnRs %in% fnFs)) stop(sprintf("The following files are in both read streams %s, %s,\n", fnFs[fnFs %in% fnRs], fnRs[ fnRs %in% fnFs])) 
+	if(any(fnFs %in% fnRs) || any(fnRs %in% fnFs)) stop(sprintf("The following files are in both read streams %s, %s,\n", fnFs[fnFs %in% fnRs], fnRs[ fnRs %in% fnFs])) 
 	print('File pairs to be processed in DADA2:')
 	print(data.frame(fwd_files=fnFs, rev_files=fnRs)) # provide debugging
 }else{
@@ -83,7 +89,7 @@ study.name = args$prefix
 if (any(args$samp_fields != F) && any(args$samp_list == F) && any(args$samp_regex == F)){ # EXTRACT_NAMES_FROM_READS
 	# Extract sample names, assuming filenames have format: {ds}_{resource]_{sample}_{factor}_R1-trimmed.fastq
 	sample.names = lapply(strsplit(basename(fnFs), args$fields_delim), function(x){paste(x[as.integer(args$samp_fields)],collapse = args$fields_delim)}) # grab the delimited feilds
-} else if (any( == F) && any(args$samp_list == F) && any(args$samp_regex == F)){ # KEEP_FULL_NAMES
+} else if (any( args$samp_fields == F) && any(args$samp_list == F) && any(args$samp_regex == F)){ # KEEP_FULL_NAMES
 	sample.names = basename(fnFs)
 } else if (any(args$samp_fields == F) && any(args$samp_list == F) && any(args$samp_regex != F)){ # EXTRACT_NAMES_WITH_REGEX
 	library(stringr)
@@ -119,14 +125,13 @@ if (!is.null(args$SCORE_MATRIX)){
 # Track Reads
 getN = function(x) sum(getUniques(x))
 track = data.frame(samp=unlist(sample.names))
-
 ##### DADA #####
 
 # Learn error rates
 write('Learning error rates R1', stderr())
 errF = learnErrors(fnFs, nreads = as.numeric(args$LEARN_READS_N), multithread=TRUE, randomize=TRUE)
-saveRDS(sprintf("plots/fwd_err_data_for_batch_with_file_%s.Rds", fnFs[1]))
-png(sprintf("plots/fwd_err_for_batch_with_file_%s.png", fnFs[1])) 
+saveRDS(errF, sprintf("plots/rev_err%s.Rds", args$batch))
+png(sprintf("plots/rev_err%s.png", args$batch)) 
 plotErrors(errF, nominalQ=TRUE)
 dev.off() 
 # Dereplication
@@ -143,8 +148,8 @@ if (any(args$rev != F)){
 	# Learn error rates
 	write('Learning error rates R2', stderr())
 	errR = learnErrors(fnRs, nreads = as.numeric(args$LEARN_READS_N), multithread=TRUE, randomize=TRUE)
-	saveRDS(sprintf("plots/rev_err_data_for_batch_with_file_%s.Rds", fnRs[1]))
-	png(sprintf("plots/rev_err_for_batch_with_file_%s.png", fnRs[1])) 
+	saveRDS(errR, sprintf("plots/rev_err%s.Rds", args$batch))
+	png(sprintf("plots/rev_err%s.png", args$batch)) 
 	plotErrors(errF, nominalQ=TRUE)
 	dev.off() 
 	
@@ -177,10 +182,12 @@ if (args$chimrm != 'FALSE'){
 	write('Remove Chimeras', stderr())
 	seqtab = removeBimeraDenovo(seqtab, method=args$chimrm, multithread=TRUE, verbose=TRUE)
 	track['nonchim'] = rowSums(seqtab)
-	write(sprintf('Percent Chimeras Removed %s',sum(seqtab.nochim)/sum(seqtab)), stderr())
+
 } 
 # Tables
 write.table(t(seqtab), file=args$asv_out, sep="\t")
 
-write('DONE/nReads Surviving each step', stderr())
+write('DONE\nReads Surviving each step', stderr())
 write.table(track, stderr())
+
+})

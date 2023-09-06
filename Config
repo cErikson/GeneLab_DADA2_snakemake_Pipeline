@@ -106,7 +106,7 @@ maxn: 0 0
 # to read in and filter at any one time. This controls
 # the peak memory requirement so that very large fastq
 # files are supported. See FastqStreamer for details
-n_reads: 100000
+n_reads: 1000
 ### End Optional ###
 
 ###### Core ######
@@ -211,7 +211,11 @@ max_consist: 10
 taxa_train: ~/ref/silva/silva_v138/silva_nr99_v138.1_train_set.fa.gz
 
 #The path to species training file
-species_train: ~/ref/silva/silva_v138/silva_species_assignment_v138.1.fa.gz
+#species_train: ~/ref/silva/silva_v138/silva_species_assignment_v138.1.fa.gz #BAYES
+species_train: ~/ref/silva/silva_v138/SILVA_SSU_r138_2019.RData #DECHIPER
+
+#There are two methods, idtaxa and bayes. The `idtaxa` algo from DECIPHER, or `bayes` from dada2
+train_method: idtaxa
 
 ### Optional ###
 # (Optional). Default 50. The minimum bootstrap

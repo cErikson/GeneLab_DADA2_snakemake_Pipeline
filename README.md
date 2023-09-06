@@ -15,7 +15,7 @@ Scripts in cli folder: https://github.com/cErikson/DADA2_cli_and_galaxy_wrapper
 
 # Asumptions
 0. Sequencing files are found under `data/seq/`
-1. Fastq filesnames are in the following format the `(<ID & Factor Levels>_)+_<Read>_<Batch>.fastq.g` format. Where (...)+ indicates one or more IDs or factor levels, delimited by under_scores. Read feild is `R1` or `R2`. Batch field indicates seperate sequencing runs.
+1. Fastq filesnames are in the following format the `(<ID & Factor Levels>_)+_<Read>_<Batch>.fastq.g` format. Where (...)+ indicates one or more IDs or factor levels, delimited by under_scores. Read feild is `R1` or `R2`. Batch field indicates seperate sequencing runs and are formated `_B*`.
 
 # Instructions 
 0. Run `snakemake setup`
@@ -75,6 +75,7 @@ Failure to do so may give you results that look good, but are bad.
 └── Snakefile			# Snakemake pipeline file
 ```
 
-TODO:
-- fix biom export
-- Merge dada batches after core, TREES WONT WORK WITH BATCHES
+# Methods
+Data processing in this study was performed by a generalized DADA2 workflow written in snakemake.(Callahan et al, 2016)(https://github.com/cErikson/GeneLab_DADA2_snakemake_Pipeline).
+In summary, adapter trimming was performed with cutadapt, using adapter sequences from BBMAP, and the non-default settings of max-n: 0, 25 trim_end_n: True.
+Filtering of reads was performed by DADA2 filter function with the non-default parameters of maxee:5 and truncq:5. The individual sequencing runs were ran as batches in DADA2 for the error rate learning, de-replication and chimera removal. ASV tables were then merged with phyloseq. Taxonomic assignment was performed by the ... method in the DADA2 package, using default parameters. The taxonomic assignment used the Silva .... database and species training with .... Phylogenetic tree construction used MAFFT using -auto and fasttree using default parameters. The final data was merged as a phyloseq and BIOM object.

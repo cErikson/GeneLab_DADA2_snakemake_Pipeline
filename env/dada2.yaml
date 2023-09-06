@@ -12,3 +12,5 @@ dependencies:
   - r-tidyverse
   - bioconductor-dada2
   - r-argparse
+  - bioconductor-phyloseq
+  - bioconductor-decipher

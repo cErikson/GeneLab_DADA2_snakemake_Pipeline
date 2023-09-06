@@ -43,7 +43,7 @@ rule all:
 rule setup:
     shell:
         '''
-        mkdir -p logs data/trim report/plots report/fastqc data/metadata/
+        mkdir -p logs data/trim report/plots report/fastqc data/metadata/ plots/
         '''
         
 rule help:
@@ -61,7 +61,7 @@ rule fastqc_raw:
     input: 
         'data/seq/{id}_{read}{batch}.fastq.gz'
     output:
-        'report/fastqc/raw/{id}_{read,R.}{batch,_.*}_fastqc.html'
+        'report/fastqc/raw/{id}_{read,R.}{batch,_B.*}_fastqc.html'
     conda:
         'env/dada2.yaml'
     resources: cores = 1, runtime = config['fastqc_time'], part = config['fastqc_part']
@@ -74,7 +74,7 @@ rule fastqc_trimmed:
     input: 
         'data/trimmed/{id}_{read}{batch}-trimmed.fastq'
     output:
-        'report/fastqc/trimmed/{id}_{read,R.}{batch,_.*}-trimmed_fastqc.html'
+        'report/fastqc/trimmed/{id}_{read,R.}{batch,_B.*}-trimmed_fastqc.html'
     conda:
         "env/dada2.yaml"
     resources: cores = 1, runtime = config['fastqc_time'], part = config['fastqc_part'] 
@@ -87,7 +87,7 @@ rule fastqc_filtered:
     input: 
         'data/filtered/{id}_{read}{batch}-filtered.fastq.gz'
     output:
-        'report/fastqc/filtered/{id}_{read,R.}{batch,_.*}-filtered_fastqc.html'
+        'report/fastqc/filtered/{id}_{read,R.}{batch,_B.*}-filtered_fastqc.html'
     conda:
         "env/dada2.yaml"
     resources: cores = 1, runtime = config['fastqc_time'], part = config['fastqc_part'] 
@@ -145,8 +145,8 @@ rule cutadapt_pe:
         fwd_revcomp_prime='data/metadata/primers/fwd_revcomp_primers.fasta',
         rev_revcomp_prime='data/metadata/primers/rev_revcomp_primers.fasta'
     output:
-        fwd_trim='data/trimmed/{ID}_R1{batch,_.*}-trimmed.fastq',
-        rev_trim='data/trimmed/{ID}_R2{batch,_.*}-trimmed.fastq'
+        fwd_trim='data/trimmed/{ID}_R1{batch,_B.*}-trimmed.fastq',
+        rev_trim='data/trimmed/{ID}_R2{batch,_B.*}-trimmed.fastq'
     log:
         'report/cutadapt/cutadapt_{ID}{batch}'
     params:
@@ -169,7 +169,7 @@ rule cutadapt_se:
         fwd_revcomp_prime='data/metadata/primers/fwd_revcomp_primers.fasta',
         rev_revcomp_prime='data/metadata/primers/rev_revcomp_primers.fasta'
     output:
-        fwd_trim='data/trimmed/{ID}_R1{batch,_.*}-trimmed.fastq'
+        fwd_trim='data/trimmed/{ID}_R1{batch,_B.*}-trimmed.fastq'
     log:
         'report/cutadapt/cutadapt_{ID}_{batch}'
     params:
@@ -192,8 +192,8 @@ rule dada2_filter_pe:
         fwd='data/trimmed/{IDS}_R1{batch}-trimmed.fastq',
         rev='data/trimmed/{IDS}_R2{batch}-trimmed.fastq'
     output:
-        fwd='data/filtered/{IDS}_R1{batch,_B*}-filtered.fastq.gz',
-        rev='data/filtered/{IDS}_R2{batch,_B*}-filtered.fastq.gz'
+        fwd='data/filtered/{IDS}_R1{batch,_B.*}-filtered.fastq.gz',
+        rev='data/filtered/{IDS}_R2{batch,_B.*}-filtered.fastq.gz'
     conda:
         "env/dada2.yaml"
     threads: config['filter_core']
@@ -207,7 +207,7 @@ rule dada2_filter_se:
     input:
         fwd='data/trimmed/{IDS}_R1{batch}-trimmed.fastq'
     output:
-        fwd='data/filtered/{IDS}_R1{batch,_B*}-filtered.fastq.gz'
+        fwd='data/filtered/{IDS}_R1{batch,_B.*}-filtered.fastq.gz'
     conda:
         "env/dada2.yaml"
     threads: config['filter_core']
@@ -226,7 +226,7 @@ rule dada2_pe:
         fwd=lambda wildcards: ['data/filtered/'+i+'_'+r+b+'-filtered.fastq.gz' for i,r,b in zip(file_ids.id, file_ids.read, file_ids.batch) if b == wildcards.batch and r == 'R1'],
         rev=lambda wildcards: ['data/filtered/'+i+'_'+r+b+'-filtered.fastq.gz' for i,r,b in zip(file_ids.id, file_ids.read, file_ids.batch) if b == wildcards.batch and r == 'R2']
     output:
-        asv='data/core/{batch}_metagenomics_dada2-asv-matrix.tsv'
+        asv='data/core/{batch,_B.*}_metagenomics_dada2-asv-matrix.tsv'
     params:
         matrix = '' if config['score_matrix'] == 'nuc44' else '--SCORE_MATRIX '+config['score_matrix']
     threads: config['core_core']
@@ -235,7 +235,7 @@ rule dada2_pe:
         "env/dada2.yaml"
     shell:
         '''
-        scripts/dada2.R -f {input.fwd} -r {input.rev} -o {output.asv} -p {output.phylo} {config[samp_fields]} \
+        scripts/dada2.R -f {input.fwd} -r {input.rev} -o {output.asv} -b {wildcards.batch} {config[samp_fields]} \
         -c {config[chimera_rm]} --LEARN_READS_N {config[learn_reads_n]} --OMEGA_A {config[omega_a]} --USE_QUALS {config[use_quals]}\
         --USE_KMERS {config[use_kmers]} --KDIST_CUTOFF {config[kdist_cutoff]} --BAND_SIZE {config[band_size]} {params.matrix}\
         --GAP_PENALTY {config[gap_penalty]} --HOMOPOLYMER_GAP_PENALTY {config[homopolymer_gap_penalty]} --MIN_FOLD {config[min_fold]}\
@@ -246,7 +246,7 @@ rule dada2_se:
     input:
         fwd=lambda wildcards: ['data/filtered/'+i+'_'+r+b+'-filtered.fastq.gz' for i,r,b in zip(file_ids.id, file_ids.read, file_ids.batch) if b == wildcards.batch and r == 'R1']
     output:
-        asv='data/core/{batch}_metagenomics_dada2-asv-matrix.tsv'
+        asv='data/core/{batch,_B.*}_metagenomics_dada2-asv-matrix.tsv'
     params:
         matrix = '' if config['score_matrix'] == 'nuc44' else '--SCORE_MATRIX '+config['score_matrix']
     threads: config['core_core']
@@ -256,7 +256,7 @@ rule dada2_se:
     resources: runtime = config['core_time'], part = config['core_part'], mem_mb = config['core_mem']
     shell:
         '''
-        scripts/dada2.R -f {input.fwd} -o {output.asv} -p {output.phylo} {config[samp_fields]} \
+        scripts/dada2.R -f {input.fwd} -o {output.asv} -b {wildcards.batch} {config[samp_fields]} \
         -c {config[chimera_rm]} --LEARN_READS_N {config[learn_reads_n]} --OMEGA_A {config[omega_a]} --USE_QUALS {config[use_quals]}\
         --USE_KMERS {config[use_kmers]} --KDIST_CUTOFF {config[kdist_cutoff]} --BAND_SIZE {config[band_size]} {params.matrix}\
         --GAP_PENALTY {config[gap_penalty]} --HOMOPOLYMER_GAP_PENALTY {config[homopolymer_gap_penalty]} --MIN_FOLD {config[min_fold]}\
@@ -280,7 +280,7 @@ rule merge_batches:
 
 rule assign_tax:
     input:
-        phylo='data/{GLDS}_batch-merge_metagenomics_dada2-asv-matrix.tsv'
+        asv='data/{GLDS}_batch-merge_metagenomics_dada2-asv-matrix.tsv'
     output:
         tax_table='data/{GLDS}_metagenomics_dada2-taxonomy-matrix.tsv',
         phylo='data/taxa/{GLDS}_metagenomics_dada2-taxonomy-phylo.Rds',
@@ -292,8 +292,8 @@ rule assign_tax:
         "env/dada2.yaml"
     shell:
         '''
-        scripts/dada2_assign_taxa.R -p {input.phylo} -o {output.tax_table} -O {output.phylo} -f {output.fasta}\
-        -t {config[taxa_train]} -s {config[species_train]} --minBoot {config[minboot]} --tryRC {config[tryrc]}\
+        scripts/dada2_assign_taxa.R -a {input.asv} -o {output.tax_table} -O {output.phylo} -f {output.fasta}\
+        -t {config[taxa_train]} -s {config[species_train]} -m {config[train_method]}  --minBoot {config[minboot]} --tryRC {config[tryrc]}\
         --taxLevels {config[taxlevels]} --allowMultiple {config[allowmultiple]} --multithread {threads}
          '''
 
@@ -333,13 +333,13 @@ rule DADA2BIOM:
         phylo='data/taxa/{GLDS}_metagenomics_dada2-taxonomy-phylo.Rds',
         tree='data/{GLDS}_metagenomics_fastree-tree-newick.tree'
     output:
-        biom='data/{GLDS}_metagenomics_dada2-json.biom',
+        biom='data/{GLDS}_metagenomics_dada2-biom.json',
         phylo='data/{GLDS}_metagenomics_dada2-complete-phylo.Rds'
     conda:
         "env/dada2.yaml"
     resources: cores = 1, runtime = config['biom_time'], part = config['biom_part'],
     shell:
         '''
-        scripts/dada2biom.py -p {input.phylo} -t {input.taxa} -b {output.biom} -P {output.biom} -s data/metadata/{config[meta_samp_file]} -c {config[meta_samp_feild]} -r {config[meta_regex]} -n {DS_NUM}
+        scripts/dada2biom_phylo.R -i {input.phylo} -t {input.tree} -b {output.biom} -p {output.phylo} -s data/metadata/{config[meta_samp_file]} -n {DS_NUM}
         '''
 

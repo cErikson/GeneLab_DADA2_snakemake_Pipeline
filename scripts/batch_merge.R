@@ -17,6 +17,6 @@ parser$add_argument('-o', "--output_table", default= F ,type="character",help="N
 args = parser$parse_args()
 
 read_asv=function(x) phyloseq(otu_table(read.table(x, header=T),taxa_are_rows = T))
-phylos=lapply(args.asv_tables, read_asv)
+phylos=lapply(args$asv_tables, read_asv)
 merged=do.call(merge_phyloseq, phylos)
-write.table(merged, args.output_table)
+write.table(merged, args$output_table)
